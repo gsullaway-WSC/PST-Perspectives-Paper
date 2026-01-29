@@ -24,7 +24,7 @@ catch_distributions <- data %>%
                         "aabm_tot",
                         "sbc_is_tot", 
                         "esc_pct",
-                        "er", # what is er???
+                        "er", #   Exploitation rate 
                         "term_tot"
                         ))
 
