@@ -310,7 +310,7 @@ ggplot(sample_sizes,
 # 1. Calculate mean length by age and basin (overall baseline)
 baseline_means <- all_recoveries %>%
   filter(!is.na(length), !is.na(ocean.age)) %>%
-  group_by(ocean.age, release_location_rmis_basin) %>%
+  group_by(ocean.age, run,release_location_rmis_basin) %>%
   summarise(
     baseline_mean_length = mean(length, na.rm = TRUE),
     baseline_sd = sd(length, na.rm = TRUE),
@@ -320,15 +320,15 @@ baseline_means <- all_recoveries %>%
 # 2. Calculate annual means and scale them
 scaled_trends <- all_recoveries %>%
   filter(!is.na(length), !is.na(ocean.age)) %>%
-  group_by(run_year, ocean.age, release_location_rmis_basin) %>%
+  group_by(run_year, ocean.age, run, release_location_rmis_basin) %>%
   summarise(
     annual_mean_length = mean(length, na.rm = TRUE),
     n = n(),
     se = sd(length, na.rm = TRUE) / sqrt(n),
     .groups = "drop"
   ) %>%
-  left_join(baseline_means, by = c("ocean.age", "release_location_rmis_basin")) %>%
-  mutate(
+  left_join(baseline_means, by = c("ocean.age", "release_location_rmis_basin", "run")) %>%
+  dplyr::mutate(
     # Deviation from age-specific mean
     length_anomaly = annual_mean_length - baseline_mean_length,
     # Standardized anomaly (z-score)
@@ -338,12 +338,15 @@ scaled_trends <- all_recoveries %>%
   )
 
 # 3. Plot scaled anomalies over time
-ggplot(scaled_trends, 
+ggplot(data = all_recoveries %>%
+         group_by(run, release_location_rmis_basin,ocean.age) %>%
+        dplyr::mutate(length_scaled= as.numeric(scale(length))) %>%
+         filter(run == "Fall"),
        aes(x = run_year, y = length_scaled, color = factor(ocean.age))) +
-  geom_line(size = 1) +
-  geom_point(aes(size = n), alpha = 0.6) +
+  geom_smooth(size = 1) +
+  geom_point( alpha = 0.6) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  facet_wrap(~release_location_rmis_basin, ncol = 1) +
+  facet_grid( ocean.age~release_location_rmis_basin, scales = "free" ) +
   labs(title = "Scaled Length Anomalies Over Time",
        subtitle = "Standardized deviation from age-specific mean length",
        x = "Run Year",
@@ -353,37 +356,22 @@ ggplot(scaled_trends,
   theme_minimal() +
   theme(legend.position = "right")
 
-# 4. Plot absolute anomalies (mm deviation)
-ggplot(scaled_trends, 
-       aes(x = run_year, y = length_anomaly, color = factor(ocean.age))) +
-  geom_line(size = 1) +
-  geom_point(aes(size = n), alpha = 0.6) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_smooth(method = "lm", se = TRUE, linetype = "dashed", alpha = 0.2) +
-  facet_wrap(~release_location_rmis_basin, ncol = 1) +
-  labs(title = "Length Anomalies Over Time by Age",
-       subtitle = "Deviation from age-specific mean length (mm)",
-       x = "Run Year",
-       y = "Length Anomaly (mm)",
-       color = "Ocean Age",
-       size = "Sample Size") +
-  theme_minimal()
 
-# 5. Plot percent change
+# 3. Plot scaled anomalies over time
 ggplot(scaled_trends, 
-       aes(x = run_year, y = length_pct_change, color = factor(ocean.age))) +
+       aes(x = run_year, y = length_scaled, color = factor(ocean.age))) +
   geom_line(size = 1) +
   geom_point(aes(size = n), alpha = 0.6) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_smooth(method = "lm", se = TRUE, linetype = "dashed", alpha = 0.2) +
-  facet_wrap(~release_location_rmis_basin, ncol = 1) +
-  labs(title = "Percent Change in Length Over Time",
-       subtitle = "Relative to age-specific mean length",
+  facet_grid(run~release_location_rmis_basin, scales = "free" ) +
+  labs(title = "Scaled Length Anomalies Over Time",
+       subtitle = "Standardized deviation from age-specific mean length",
        x = "Run Year",
-       y = "Percent Change from Mean (%)",
+       y = "Standardized Length Anomaly (SD units)",
        color = "Ocean Age",
        size = "Sample Size") +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "right")
 
 # 6. Heatmap of scaled anomalies
 ggplot(scaled_trends, 
@@ -391,30 +379,13 @@ ggplot(scaled_trends,
   geom_tile() +
   scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
                        midpoint = 0, limits = c(-3, 3), oob = scales::squish) +
-  facet_wrap(~release_location_rmis_basin, ncol = 1) +
+  facet_grid(run~release_location_rmis_basin ) +
   labs(title = "Standardized Length Anomalies Heatmap",
        x = "Run Year",
        y = "Ocean Age",
-       fill = "Std. Anomaly\n(SD units)") +
+       fill = "SD Anomaly ") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# 7. Compare basins directly - same age classes
-ggplot(scaled_trends, 
-       aes(x = run_year, y = length_scaled, 
-           color = release_location_rmis_basin, 
-           linetype = release_location_rmis_basin)) +
-  geom_line(size = 1) +
-  geom_point(alpha = 0.4) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
-  facet_wrap(~ocean.age, ncol = 2) +
-  labs(title = "Basin Comparison: Scaled Length Trends by Age",
-       x = "Run Year",
-       y = "Standardized Length Anomaly (SD units)",
-       color = "Basin",
-       linetype = "Basin") +
-  theme_minimal()
 
 # 8. Statistical summary of trends
 trend_stats <- scaled_trends %>%
@@ -437,8 +408,6 @@ trend_stats <- scaled_trends %>%
     )
   )
 
-print(trend_stats)
-
 # 9. Visualize trend statistics
 ggplot(trend_stats, 
        aes(x = factor(ocean.age), y = trend_slope, 
@@ -455,27 +424,6 @@ ggplot(trend_stats,
        x = "Ocean Age",
        y = "Trend Slope (mm/year)",
        fill = "Trend Direction") +
-  theme_minimal()
-
-# 10. Moving average to smooth trends
-scaled_trends_smooth <- scaled_trends %>%
-  arrange(release_location_rmis_basin, ocean.age, run_year) %>%
-  group_by(release_location_rmis_basin, ocean.age) %>%
-  mutate(
-    length_anomaly_ma = zoo::rollmean(length_anomaly, k = 3, fill = NA, align = "center"),
-    length_scaled_ma = zoo::rollmean(length_scaled, k = 3, fill = NA, align = "center")
-  ) %>%
-  ungroup()
-
-ggplot(scaled_trends_smooth, 
-       aes(x = run_year, y = length_anomaly_ma, color = factor(ocean.age))) +
-  geom_line(size = 1.2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-  facet_wrap(~release_location_rmis_basin, ncol = 1) +
-  labs(title = "Smoothed Length Anomaly Trends (3-year moving average)",
-       x = "Run Year",
-       y = "Length Anomaly (mm)",
-       color = "Ocean Age") +
   theme_minimal()
 
  
