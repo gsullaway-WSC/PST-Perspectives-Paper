@@ -1,5 +1,5 @@
 # Plot AABM harvest versus total stock escapements 
- 
+
 library(tidyverse)
 library(here)
 library(readxl)
@@ -21,7 +21,7 @@ OP_total_run_df <- data %>%
                                    TRUE ~ "NA"),
                 total_run = as.numeric(total_run))   
 
- 
+
 aabmcatch <- read_csv("data/AABM_fishery_performance_data_all_2026-01-28.csv") %>% 
   filter(DataType == "catch")
 
@@ -185,7 +185,7 @@ corr_df_raw_labeled <- corr_df_raw %>%
                                  population == "Grays_Harbor_sp" ~ "Grays Harbor S.",
                                  population == "Grays_Harbor_fa" ~ "Grays Harbor F.",
                                  population == "Quillayute_fa" ~ "Quillayute F."
-                                 )) %>% 
+  )) %>% 
   group_by(population) %>%
   dplyr::mutate(
     n_vulnerable = sum(weak_stock & high_aabm, na.rm = TRUE),
@@ -230,6 +230,61 @@ plot3B_vulnerability <- ggplot(corr_df_raw_labeled, aes(x = year)) +
 
 print(plot3B_vulnerability)
 ggsave("plots/plot3B_vulnerability.jpeg", width = 8, height =6)
+
+
+### OPTION 3C: Mean scale -- Highlight years when weak stocks overlap with high AABM  ======
+# plot 3 used high exploitation rates but i am not sure if those are AABM or all mixed stock fishing 
+
+corr_df_raw_labeledC <- corr_df_raw %>%
+  mutate(population = case_when( population == "Hoh_sp" ~ "Hoh S.",
+                                 population == "Hoh_fa" ~ "Hoh F.",
+                                 population == "Queets_sp" ~ "Queets S.",
+                                 population == "Queets_fa" ~ "Queets F.",
+                                 population == "Grays_Harbor_sp" ~ "Grays Harbor S.",
+                                 population == "Grays_Harbor_fa" ~ "Grays Harbor F.",
+                                 population == "Quillayute_fa" ~ "Quillayute F."
+  )) %>% 
+  group_by(population) %>%
+  dplyr::mutate(
+    n_vulnerable = sum(weak_stock & high_aabm, na.rm = TRUE),
+    population_label = paste0(population, " (n=", n_vulnerable, ")")) %>% 
+  ungroup() %>%
+  dplyr::mutate(  population_label = fct_reorder(population_label, n_vulnerable, .desc = TRUE)) %>%
+  group_by(population_label,population) %>%
+  dplyr::mutate(total_run = as.numeric(scale(total_run)),
+                aabm_tot = as.numeric(scale(aabm_tot)),
+  )
+
+# Create the plot using the labeled population variable
+plot3C_vulnerability <- ggplot(corr_df_raw_labeledC, aes(x = year)) +
+  # Shade vulnerable periods (weak stock + high exploitation)
+  geom_rect(
+    data = corr_df_raw_labeled %>% filter(weak_stock & high_aabm),
+    aes(xmin = year - 0.5, xmax = year + 0.5, ymin = -Inf, ymax = Inf),
+    fill = "red", alpha = 0.15
+  ) +
+  geom_line(aes(y = total_run, color = "Total Run"), size = 1) +
+  geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", color = "blue") +
+  facet_wrap(~ population_label, scales = "free_y", ncol = 3) +
+  scale_color_manual(
+    values = c("Total Run" = "steelblue", "AABM Catch" = "darkred"),
+    name = "Type"
+  ) +
+  labs(
+    title = "Vulnerable Periods: Weak Stocks Face High Exploitation",
+    subtitle = "Red shading = below-average runs overlap with above-average AABM catch\nn = number of vulnerable years",
+    y = "Abundance",
+    x = "Year"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+print(plot3C_vulnerability)
+ggsave("plots/plot3C_vulnerability.jpeg", width = 8, height =6)
 
 ## OPTION 4: Scatter plot showing exploitation rate vs stock size  ======
 plot4_scatter <- ggplot(corr_df_raw, aes(x = total_run, y = exploitation_rate)) +
