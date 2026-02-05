@@ -117,7 +117,7 @@ fit_lme_by_age <- function(df, ocean_age_value, include_sex = FALSE) {
   # if(include_sex) {
   #   fixed_formula <- "length ~ year * release_stage + fishery + freshwater_age + run_type + sex_clean + day_of_year + hatchery_name"
   # } else {
-  if(ocean_ages == 5) { # only one level of FW age for age 5 fish so remving from model 
+  if(ocean_age_value == 5) { # only one level of FW age for age 5 fish so removing from model 
     fixed_formula <- "length ~ year + fishery + run_type + day_of_year + release_stage + hatchery_name"
 } else {
   fixed_formula <- "length ~ year + fishery + freshwater_age + run_type + day_of_year + release_stage + hatchery_name"
@@ -285,24 +285,23 @@ run_model_selection <- function(model_obj) {
 #top_mods<- run_model_selection(model_obj = model_obj)
 
  # 5. EXTRACT AND VISUALIZE YEAR EFFECTS ============================================================================
- 
 extract_year_effects <- function(model_obj) {
   
-  # Get fixed effects
   fixed_eff <- if(inherits(model_obj$model, "lme")) {
     fixef(model_obj$model)
   } else {
     coef(model_obj$model)
   }
   
-  # Get standard errors
   se <- sqrt(diag(vcov(model_obj$model)))
+  intercept <- fixed_eff["(Intercept)"]
   
-  # Extract year coefficients
   year_coefs <- fixed_eff[grep("^year", names(fixed_eff))]
   year_se <- se[grep("^year", names(se))]
   
-  # Create data frame for plotting
+  # Get reference year (first year in data)
+  ref_year <- min(as.numeric(as.character(model_obj$data$year)))
+  
   year_effects_df <- data.frame(
     year = as.numeric(gsub("year", "", names(year_coefs))),
     effect = as.numeric(year_coefs),
@@ -310,27 +309,43 @@ extract_year_effects <- function(model_obj) {
     ocean_age = model_obj$ocean_age
   )
   
-  # Calculate 95% confidence intervals
+  # Add reference year with effect = 0
+  ref_row <- data.frame(
+    year = ref_year,
+    effect = 0,
+    se = 0,
+    ocean_age = model_obj$ocean_age
+  )
+  
+  year_effects_df <- bind_rows(ref_row, year_effects_df) %>%
+    arrange(year)
+  
+  # Calculate CIs
   year_effects_df$lower <- year_effects_df$effect - 1.96 * year_effects_df$se
   year_effects_df$upper <- year_effects_df$effect + 1.96 * year_effects_df$se
+  
+  # Predicted lengths
+  year_effects_df$predicted_length <- year_effects_df$effect + intercept
+  year_effects_df$predicted_lower <- year_effects_df$lower + intercept
+  year_effects_df$predicted_upper <- year_effects_df$upper + intercept
   
   return(year_effects_df)
 }
 #year_eff<-extract_year_effects(model_obj)
-
 plot_year_trends <- function(year_effects_list) {
   
   # Combine year effects from all ages
   all_effects <- bind_rows(year_effects_list)
   
-  ggplot(all_effects, aes(x = year, y = effect, color = factor(ocean_age), fill = factor(ocean_age))) +
+  # Plot 1: Year effects (deviations from baseline)
+  p1 <- ggplot(all_effects, aes(x = year, y = effect, color = factor(ocean_age), fill = factor(ocean_age))) +
     geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, color = NA) +
     geom_line(size = 1) +
     geom_point() +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
     labs(
       title = "Temporal trends in size-at-age",
-      subtitle = "Year effects from LME models with 95% confidence intervals",
+      subtitle = "Year effects (deviations from baseline year)",
       x = "Brood Year",
       y = "Year effect on length (mm)",
       color = "Ocean Age",
@@ -338,7 +353,29 @@ plot_year_trends <- function(year_effects_list) {
     ) +
     theme_bw() +
     theme(legend.position = "bottom")
+  
+  # Plot 2: Predicted absolute lengths
+  p2 <- ggplot(all_effects, aes(x = year, y = predicted_length, color = factor(ocean_age), fill = factor(ocean_age))) +
+    geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
+    geom_line(size = 1) +
+    geom_point() +
+    labs(
+      title = "Predicted length-at-age over time",
+      subtitle = "Model-predicted lengths with 95% confidence intervals",
+      x = "Brood Year",
+      y = "Predicted length (mm)",
+      color = "Ocean Age",
+      fill = "Ocean Age"
+    ) +
+    theme_bw() +
+    theme(legend.position = "bottom")
+  
+  # Combine both plots
+  combined <- grid.arrange(p1, p2, ncol = 1)
+  
+  return(list(effects_plot = p1, predicted_plot = p2, combined = combined))
 }
+
 #plot_year <- plot_year_trends(year_effects_list=year_eff)
  
 # 6. MODEL DIAGNOSTICS ============================================================================
@@ -414,7 +451,7 @@ run_full_analysis <- function(input_data, ocean_ages) {
   diagnostic_plots <- list()  # Add this
   
   for(age in ocean_ages) {
-    
+ 
     # Fit model without sex - default 
     model_list <- fit_lme_by_age(df_prepared, age)
     
@@ -445,8 +482,9 @@ run_full_analysis <- function(input_data, ocean_ages) {
     selection = selection_results,
     year_effects = year_effects,
     year_plot = year_plot,
-    diagnostics = diagnostic_plots,  # Add this
-    data = df_prepared
+    diagnostics = diagnostic_plots,   
+    data = df_prepared,
+    formula = formula(final_base_model)   
   ))
 }
 # 8. COMPARE MODELS ACROSS AGES ============================================================================
@@ -490,18 +528,11 @@ df <- read_csv("data/OP_Chinook_RMIS_tidy.csv") %>%
   filter(!brood_year < 1980)
 
 ## call functions for all ages ====
-
-# ocean age one at a time 
-# results1 <- run_full_analysis(input_data=df, ocean_ages = 1)
-# results2 <- run_full_analysis(input_data=df, ocean_ages = 2)
-# results3 <- run_full_analysis(input_data=df, ocean_ages = 3)
-# results4 <- run_full_analysis(input_data=df, ocean_ages = 4)
-# results5 <- run_full_analysis(input_data=df, ocean_ages = 5)
-
+ 
 # all_results <-list(results1,results1,results1,results1)
  
 # once they work individually, run them all in one so its easier for plotting etc. 
- results <- run_full_analysis(df, ocean_ages = 1:5)
+ results <- run_full_analysis(input_data = df, ocean_ages = 1:5)
  
  write_rds(results, "output/sizeatage_LME_results.RDS")
   

@@ -36,10 +36,11 @@ op_release <- read_csv("data/RMIS_releases/OP_Releases.csv") %>%
                 release_location_code, hatchery_location_code,
                 release_stage, avg_weight, avg_length, 
                 release_location_name, hatchery_location_name,
-                stock_location_name, release_location_rmis_region,
+                stock_location_name, stock_location_code,
+                release_location_rmis_region,
                 release_location_rmis_basin) %>%
   dplyr::mutate(tag_code = as.character(tag_code))
-
+ 
 # Function to process a single recovery file
 process_recovery_file <- function(file_path, release_data) {
   
@@ -109,7 +110,7 @@ recoveries <- all_recoveries %>%
 
 # Create summary table =====
 summary_df1 <- recoveries %>%
-  group_by(#stock_location_name, 
+  group_by(stock_location_name, 
            release_location_rmis_basin, 
            hatchery_location_name, 
            release_location_name, 
@@ -122,11 +123,12 @@ summary_df1 <- recoveries %>%
     total_recoveries = n(),
     .groups = 'drop'
   ) 
+
 # remove release location 
 summary_df2 <- recoveries %>%
-  group_by(#stock_location_name, 
+  group_by( 
     release_location_rmis_basin, 
-    hatchery_location_name, 
+    hatchery_location_name,  
     release_stage,
     run) %>%
   dplyr::summarise(
@@ -139,6 +141,11 @@ summary_df2 <- recoveries %>%
   ) %>% 
   dplyr::mutate(use = case_when(number_of_broodyears>5 ~ "yes",
                                 TRUE ~"no"))
+
+## save tables ====
+write_csv(summary_df1,"output/summary_df1_longer.csv")
+
+write_csv(summary_df2,"output/summary_df2.csv")
 
  # Create a hatchery filtered DF and save =====
 filter_hatcheries <- summary_df2 %>%
@@ -163,13 +170,33 @@ unique(recoveries$release_location_name)
 
 ## Plots comparing release basin ======= 
 # 1. Count of records by year ===== 
-ggplot(recoveries, aes(x = brood_year)) +
+all_ages <- ggplot(recoveries, aes(x = brood_year)) +
   geom_bar(fill = "steelblue") +
   labs(title = "Number of Records by Run Year",
        x = "Run Year",
        y = "Count") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~ocean.age, scales = "free_y") + 
+  geom_hline(yintercept = 25, linetype = 2)  +
+  geom_hline(yintercept = 10) 
+
+all_ages
+ggsave("output/plots/age_record_count_allages.jpeg",width = 8, height =6)
+
+age_5_count <- ggplot(recoveries %>% filter(ocean.age==5), aes(x = brood_year)) +
+  geom_bar(fill = "steelblue") +
+  geom_hline(yintercept = 25, linetype = 2) + 
+  geom_hline(yintercept = 5) + 
+  labs(title = "Number of Records by Run Year",
+       x = "Run Year",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~ocean.age, scales = "free_y")
+
+age_5_count
+ggsave("output/plots/age_record_count_age5.jpeg",width = 8, height =6)
 
 # 2. Count by release location basin =====
 ggplot(recoveries, aes(y = reorder(release_location_rmis_basin, 
@@ -225,12 +252,15 @@ ggplot(recoveries, aes(x = weight)) +
   theme_minimal()
 
 # 7. Age distribution  ======
-ggplot(recoveries, aes(x = ocean.age)) +
+age_dist <- ggplot(recoveries, aes(x = ocean.age)) +
   geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
   labs(title = "Age Distribution (Check for Unusual Values)",
        x = "Age",
        y = "Count") +
   theme_minimal()
+
+age_dist
+ggsave("output/plots/age_distribution.jpeg",width = 8, height =6)
 
 # 8. Missing data visualization ==== 
 recoveries %>%
@@ -286,7 +316,7 @@ ggplot(all_recoveries_summary,
        y = "Mean Length",
        color = "Ocean Age") +
   theme_minimal()
-
+ 
 # 11 Violin plots: Distribution of length by age for each basin =======
 ggplot(recoveries %>% filter(!is.na(length), !is.na(ocean.age)), 
        aes(x = factor(ocean.age), y = length, fill = release_location_rmis_basin)) +
@@ -347,7 +377,7 @@ scaled_trends <-recoveries %>%
   )
 
 # 12. Plot scaled anomalies over time =========
-ggplot(scaled_trends, 
+scaled_length <- ggplot(scaled_trends, 
        aes(x = brood_year, y = length_scaled, color = release_location_rmis_basin)) +
   geom_path(size = 0.5) +
   geom_point(alpha = 0.6) +
@@ -360,6 +390,10 @@ ggplot(scaled_trends,
        color = "Ocean Age") +
   theme_minimal() +
   theme(legend.position = "right")
+
+
+scaled_length
+ggsave("output/plots/scaled_length.jpeg",width = 8, height =6)
 
 # 13. Heatmap of scaled anomalies ===========
 ggplot(scaled_trends, 
@@ -438,7 +472,6 @@ ggplot(diff_stats,
 
 
 ## Plots comparing hatchery ======= 
-
 # 1. Count of records by year ===== 
 ggplot(hatchery, aes(x = brood_year)) +
   geom_bar(fill = "steelblue") +
@@ -530,7 +563,7 @@ all_recoveries_summary <- hatchery %>%
     .groups = "drop"
   )
 
-ggplot(all_recoveries_summary, 
+mean_L_through_time <- ggplot(all_recoveries_summary, 
        aes(x = brood_year, y = mean_length, color = factor(ocean.age))) +
   geom_path() +
   scale_color_viridis_d() + 
@@ -541,6 +574,10 @@ ggplot(all_recoveries_summary,
        y = "Mean Length",
        color = "Ocean Age") +
   theme_minimal()
+
+mean_L_through_time
+ggsave("output/plots/mean_length_time_data.jpeg",width = 8, height =6)
+
 
 # 11. Violin plots: Distribution of length by age for each basin =======
 ggplot(hatchery %>% filter(!is.na(length), !is.na(ocean.age)), 
@@ -614,7 +651,7 @@ scaled_trends_Group <- scaled_trends %>%
   mutate(line_group = paste(hatchery_location_name, run, ocean.age, group_id, sep = "_"))
 
 # Plot with line_group in aes
-ggplot(scaled_trends_Group, 
+trends_plot <- ggplot(scaled_trends_Group, 
        aes(x = brood_year, y = length_scaled, 
            color = hatchery_location_name,
            group = line_group)) +  # Add group aesthetic
@@ -629,6 +666,8 @@ ggplot(scaled_trends_Group,
        color = "Hatchery Location") +
   theme_minimal() +
   theme(legend.position = "right")
+trends_plot
+ggsave("output/plots/length_trends_time.jpeg",width = 8, height =6)
 
 # 6. Heatmap of scaled anomalies
 ggplot(scaled_trends, 
@@ -685,7 +724,7 @@ diff_stats <- scaled_trends %>%
     )
   )
 
-ggplot(diff_stats,
+summary_stat_plot<- ggplot(diff_stats,
        aes(x = factor(ocean.age),
            y = mean_diff,
            fill = change_direction)) +
@@ -704,4 +743,7 @@ ggplot(diff_stats,
     fill = "Direction of change"
   ) +
   theme_minimal()
+
+summary_stat_plot
+ggsave("output/plots/summary_stat_plot.jpeg",width = 8, height =6)
 

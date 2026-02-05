@@ -1,4 +1,6 @@
-# functions to calcualte summary statistics from LME_OP_CHinook.R script output. 
+# functions to calculate summary statistics from LME_OP_CHinook.R script output. 
+
+results <- readRDS("output/sizeatage_LME_results.RDS")
 
 calculate_size_changes <- function(results_list, reference_year = 1990) {
   
@@ -16,10 +18,16 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
     first_year <- min(year_effects$year)
     last_year <- max(year_effects$year)
     
-    # Change from first to last year
-    first_effect <- year_effects$effect[year_effects$year == first_year]
-    last_effect <- year_effects$effect[year_effects$year == last_year]
-    total_change <- last_effect - first_effect
+    # Calculate average effect for first 5 years
+    first_5_years <- head(sort(unique(year_effects$year)), 5)
+    first_5_avg <- mean(year_effects$effect[year_effects$year %in% first_5_years], na.rm = TRUE)
+    
+    # Calculate average effect for last 5 years
+    last_5_years <- tail(sort(unique(year_effects$year)), 5)
+    last_5_avg <- mean(year_effects$effect[year_effects$year %in% last_5_years], na.rm = TRUE)
+    
+    # Change from first 5 to last 5 years average
+    total_change <- last_5_avg - first_5_avg
     
     # Change per decade
     n_years <- last_year - first_year
@@ -28,6 +36,7 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
     # Change from reference year to last year
     if(reference_year %in% year_effects$year) {
       ref_effect <- year_effects$effect[year_effects$year == reference_year]
+      last_effect <- year_effects$effect[year_effects$year == last_year]
       change_from_ref <- last_effect - ref_effect
       years_from_ref <- last_year - reference_year
     } else {
@@ -40,6 +49,8 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
       ocean_age = ocean_age,
       first_year = first_year,
       last_year = last_year,
+      first_5_years = paste(first_5_years, collapse = ", "),
+      last_5_years = paste(last_5_years, collapse = ", "),
       total_change_mm = round(total_change, 1),
       change_per_decade_mm = round(change_per_decade, 1),
       reference_year = reference_year,
@@ -58,17 +69,18 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
   
   for(i in 1:nrow(summary_df)) {
     age <- summary_df$ocean_age[i]
-    total_age <- age + 1  # Approximate total age (ocean age + 1 year freshwater)
     
-    cat("OCEAN AGE", age, "(~", total_age, "years old total):\n")
+    cat("OCEAN AGE", age, "\n")
     cat("──────────────────────────────────────────────────────────\n")
     cat("  Time period:", summary_df$first_year[i], "to", summary_df$last_year[i], "\n")
-    cat("  Total change:", summary_df$total_change_mm[i], "mm\n")
+    cat("  First 5 years:", summary_df$first_5_years[i], "\n")
+    cat("  Last 5 years:", summary_df$last_5_years[i], "\n")
+    cat("  Total change (avg of first 5 vs last 5):", summary_df$total_change_mm[i], "mm\n")
     cat("  Rate of change:", summary_df$change_per_decade_mm[i], "mm per decade\n\n")
     
     if(!is.na(summary_df$change_from_reference_mm[i])) {
       cat("  COMPARISON TO", reference_year, ":\n")
-      cat("  An average", total_age, "year old fish caught in", 
+      cat("  An average ocean age", age, "fish caught in", 
           summary_df$last_year[i], "is\n")
       cat("  ", abs(summary_df$change_from_reference_mm[i]), "mm",
           ifelse(summary_df$change_from_reference_mm[i] < 0, "SHORTER", "LONGER"),
@@ -84,21 +96,5 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
 # Usage:
 size_changes <- calculate_size_changes(results, reference_year = 1990)
 
-# View as table
-print(size_changes)
-
 # Save to CSV
-write.csv(size_changes, "size_change_summary.csv", row.names = FALSE)
- 
-# 
-# This will output something like:
-#   ```
-# OCEAN AGE 3 (~ 4 years old total):
-#   ──────────────────────────────────────────────────────────
-# Time period: 1975 to 2020
-# Total change: -89.3 mm
-# Rate of change: -19.8 mm per decade
-# 
-# COMPARISON TO 1990:
-#   An average 4 year old fish caught in 2020 is
-# 45.2 mm SHORTER than an average fish caught in 1990
+write.csv(size_changes, "output/size_change_summary.csv", row.names = FALSE)
