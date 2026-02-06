@@ -1,4 +1,4 @@
-"ocean_age","first_year","last_year","first_5_years","last_5_years","total_change_mm","change_per_decade_mm","reference_year","change_from_reference_mm","years_from_reference"
+ocean_age,first_year,last_year,first_5_years,last_5_years,total_change_mm,change_per_decade_mm,reference_year,change_from_reference_mm,years_from_reference
 1,1980,2021,"1980, 1981, 1982, 1983, 1984","2017, 2018, 2019, 2020, 2021",-30.3,-7.4,1990,-37.4,31
 2,1980,2020,"1980, 1981, 1982, 1983, 1984","2016, 2017, 2018, 2019, 2020",-82.9,-20.7,1990,-87.3,30
 3,1980,2019,"1980, 1981, 1982, 1983, 1984","2015, 2016, 2017, 2018, 2019",-67.7,-17.4,1990,-79.3,29
