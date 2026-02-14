@@ -1,0 +1,544 @@
+library(tidyverse)
+library(here)
+library(readxl)
+library(viridis)
+
+# # columns are the region_ either: n=Net, s=Sport, t=Troll.
+# col_index <- which(names(data) == "er")
+# col_index
+
+data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
+  filter(region == "OP", !year == 2023) # NAs 
+ 
+total_run_df<-data %>%  
+  dplyr::select( year,population,region,total_run) %>%
+  dplyr::mutate(total_run = as.numeric(total_run))
+
+catch_distributions <- data %>%
+  dplyr::select(c(1:39)) %>%
+  gather(4:ncol(.), key = "fishery_region", value = "percent_mort") %>%
+  filter(!fishery_region %in% c(#"US_is_tot",
+                                "stray", 
+                               "aabm_tot", 
+                                "esc_pct", 
+                                "er",  
+                               "term_tot"
+                                )) %>%
+  dplyr::mutate(percent_mort = as.numeric(percent_mort)/100) 
+
+# OP whole ======= 
+Oly_Pen_fish <- catch_distributions %>%
+  left_join(total_run_df) %>% 
+  filter(!is.na(percent_mort )) %>% 
+  dplyr::mutate(mortality_numbers = total_run *percent_mort,
+                broad_region = case_when(
+                  # Alaska
+                  str_detect(fishery_region, "^seak") ~ "Alaska",
+                  str_detect(fishery_region, "^ak_term")  ~ "Alaska",
+                  
+                  str_detect(fishery_region, "^US_term")  ~ "Washington Coast In-River",
+                  str_detect(fishery_region, "^term_tot")  ~ "Washington Coast In-River",
+
+                   # Canada
+                  str_detect(fishery_region, "^can_term")  ~ "British Columbia",
+                  str_detect(fishery_region, "^wcvi")     ~ "British Columbia",#"West Coast Vancouver Island",
+                  str_detect(fishery_region, "^nbc")      ~ "British Columbia", #"North Coast BC",
+                  str_detect(fishery_region, "^sbc")      ~ "British Columbia",
+                  
+                  # str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
+                  
+                  # Falcon (US)
+                  str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+                  # str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
+                  
+                  fishery_region == "nfalc_s" ~ "Washington Coast Ocean",
+                  fishery_region == "nfalc_t" ~ "Washington Coast Ocean",
+                  fishery_region == "US_is_tot" ~ "Washington Coast Ocean",
+
+                  # WA     
+                  fishery_region == "PS_n" ~ "Puget Sound",
+                  fishery_region == "PS_s" ~ "Puget Sound",
+                  
+                  fishery_region == "wac_n" ~ "Washington Coast In-River",
+                  # Other
+                  TRUE                                    ~ "Check")) 
+
+uniqueOP<- data.frame(unique(Oly_Pen_fish[c("broad_region","fishery_region")]))
+
+uniqueOP <- uniqueOP %>% 
+  arrange(broad_region)
+# # 
+# test <- Oly_Pen_fish %>%
+#   filter(fishery_region %in% c("US_term_n","US_term_s","US_term_t", "term_tot")) %>%
+#   dplyr::select(year, population, fishery_region, total_run) %>%
+#   spread(fishery_region, total_run) %>%
+#   mutate(sum = US_term_n+ US_term_s+US_term_t)
+
+
+total_FMnumbers <- Oly_Pen_fish %>%
+  group_by(year) %>%
+  # get annual sum of all fishery mortality from OP for the year
+  dplyr::summarise(total_FM_numbers = sum(mortality_numbers))  # want to ask, of all the fish caught that year, what was the relative proportions. Not related to overall runsize. 
+
+OP_plot_df<- Oly_Pen_fish %>% 
+  dplyr::select(-c(total_run, percent_mort,fishery_region))%>%
+  ungroup() %>%
+  group_by(year, broad_region) %>%
+  dplyr::summarise(mort_broad_region = sum(mortality_numbers)) %>% 
+  left_join(total_FMnumbers) %>%
+  dplyr::mutate(percent_mort = mort_broad_region/total_FM_numbers,
+                broad_region = factor(broad_region, levels = c(
+                  "Alaska", 
+                  # "Canada Terminal",
+                  "British Columbia",
+                  # "North Coast BC",  
+                  # "South Coast BC", 
+                  # "West Coast Vancouver Island",  
+                  # "US Terminal",
+                  "Puget Sound", 
+                  # "Washington Coast",
+                  # "North of Falcon",
+                  "South of Falcon",
+                  "Washington Coast Ocean", 
+                  "Washington Coast In-River"
+                )))    
+
+## stacked bar ======               
+
+OP_FM_stacked <- ggplot(OP_plot_df,
+                        aes(x = year,
+                            y = percent_mort,
+                            fill = broad_region)) +
+  geom_col(color = "black",alpha = 0.9, width = 1) +
+  scale_y_continuous(
+    # limits = c(0, 1),
+    expand = c(0, 0),
+    name = "Proportion of Fishery Mortality*",
+    labels = scales::percent_format()
+  ) +
+  scale_x_continuous(
+    name = "Year",
+    expand = c(0, 0)
+  ) +
+  labs(fill = "Fishery Region", title = "OP Chinook", caption = "*Known Fishery Mortality") +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  ) + 
+  scale_fill_viridis_d(drop = FALSE)
+
+OP_FM_stacked
+
+ggsave("output/plots/OP_FM_stacked.jpeg", height = 7, width = 7)
+ 
+# aktest <-  catch_distributions %>% 
+#   filter(fishery_region %in% c("US_term_s"))
+# 
+# unique(catch_distributions$fishery_region)
+# OP individual runs Broad Label =====
+## Run Level Mortality ==== 
+OP_individ_run_fish <- catch_distributions %>%
+  left_join(total_run_df) %>% 
+  dplyr::mutate( mortality_numbers = total_run *percent_mort)
+  dplyr::mutate(
+    population = case_when(population == "Grays_Harbor_fa" ~ "Grays Harbor Fall",
+                           population == "Grays_Harbor_sp" ~ "Grays Harbor Spring",
+                           population == "Hoh_fa" ~ "Hoh Fall", 
+                           population == "Hoh_sp" ~ "Hoh Spring",
+                           population == "Quillayute_fa" ~ "Quillayute Fall",
+                           population == "Quillayute_sp" ~ "Quillayute Spring",
+                           population == "Queets_fa" ~ "Queets Fall",
+                           population == "Queets_sp" ~ "Queets Spring",
+                           TRUE ~ "Check"), 
+    broad_region = case_when(
+      # Alaska
+      str_detect(fishery_region, "^seak") ~ "Alaska",
+      str_detect(fishery_region, "^ak_term")  ~ "Alaska",
+      
+      str_detect(fishery_region, "^US_term")  ~ "US Terminal",
+      
+      # Canada
+      str_detect(fishery_region, "^wcvi")     ~ "West Coast Vancouver Island",
+      str_detect(fishery_region, "^nbc")      ~ "British Columbia", #"North Coast BC",
+      str_detect(fishery_region, "^sbc")      ~ "British Columbia",
+      
+      # str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
+      
+      # Falcon (US)
+      str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+      # str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
+     
+      fishery_region == "nfalc_s" ~ "North of Falcon",
+      fishery_region == "nfalc_t" ~ "North of Falcon",
+      
+      # WA     
+      fishery_region == "PS_n" ~ "Puget Sound",
+      fishery_region == "PS_s" ~ "Puget Sound",
+      
+      fishery_region == "wac_n" ~ "Washington Coast",
+      # Other
+      TRUE                                    ~ "Check")) %>%
+ # filter(!is.na(broad_region)) %>% 
+  group_by(year, population, broad_region) %>%
+ # filter(!is.na(percent_mort)) %>% 
+  dplyr::summarise(sum_mortality_numbers = sum(mortality_numbers))
+
+## Stacked Bar =====
+op_pops <- unique(OP_individ_run_fish$population)
+plot_list <- list()
+
+for (i in 1:length(op_pops)) {
+  name <- op_pops[[i]]
+  print(name)
+  
+  # Filter data for this population
+  pop_data <- OP_individ_run_fish %>% 
+    filter(population == name) 
+  
+  # Create all combinations of year and broad_region
+  all_combos <- expand.grid(
+    year = unique(pop_data$year),
+    broad_region = unique(OP_individ_run_fish$broad_region),
+    stringsAsFactors = FALSE
+  )
+  
+  # Join with actual data, filling NAs with 0
+  plot_data <- all_combos %>%
+    left_join(pop_data, by = c("year", "broad_region")) %>%
+    mutate(percent_mort = replace_na(percent_mort, 0),
+           population = name) %>%
+    mutate(broad_region = factor(broad_region, levels = c(
+      "Alaska", 
+      "North Coast BC", 
+      "West Coast Vancouver Island", 
+      "South Coast BC",  
+      "Puget Sound - Net",  
+      "Puget Sound - Sport",  
+      "Washington Coast - Net",
+      "North of Falcon - Sport", 
+      "North of Falcon - Troll", 
+      "South of Falcon"
+    ))) %>%
+    filter(!is.na(broad_region))  %>%
+    # Calculate proportion of total mortality for each year
+    group_by(year) %>%
+    mutate(
+      total_mort = sum(percent_mort),
+      proportion_mort = if_else(total_mort > 0, percent_mort / total_mort, 0)
+    ) %>%
+    ungroup() 
+  
+  plot_list[[i]] <- ggplot(plot_data,
+                           aes(x = year,
+                               y = proportion_mort,
+                               fill = broad_region)) +
+    geom_col(color = "black", size = 0.2, alpha = 0.9, width = 1) +
+    scale_y_continuous(
+      limits = c(0, 1),
+      expand = c(0, 0),
+      name = "Proportion of Fishery Mortality*",
+      labels = scales::percent_format()
+    ) +
+    scale_x_continuous(
+      name = "Year",
+      expand = c(0, 0)
+    ) +
+    labs(fill = "Fishery Region", title = paste0(name), caption = "*Known Fishery Mortality") +
+    theme_minimal() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.spacing = unit(1, "lines")
+    ) + 
+    scale_fill_viridis_d(drop = FALSE)
+}
+
+for(i in seq_along(plot_list)) {
+  name = op_pops[[i]]
+  ggsave(paste0("output/plots/OP_Chinook_Population_Stacked_", name, ".jpeg"),
+         plot = plot_list[[i]], 
+         width = 8, height = 6)
+}
+
+## Geom Area =====
+op_pops <- unique(OP_individ_run_fish$population)
+plot_list <- list()
+
+for (i in 1:length(op_pops)) {
+  name <- op_pops[[i]]
+  print(name)
+  
+  # Filter data and complete with all broad_region levels
+  plot_data <- OP_individ_run_fish %>% 
+    filter(population == name) 
+  
+  # Create all combinations of year and broad_region
+  all_combos <- expand.grid(
+    year = unique(pop_data$year),
+    broad_region = unique(OP_individ_run_fish$broad_region),
+    stringsAsFactors = FALSE
+  )
+  
+  # Join with actual data, filling NAs with 0
+  plot_data <- all_combos %>%
+    left_join(pop_data, by = c("year", "broad_region")) %>%
+    mutate(percent_mort = replace_na(percent_mort, 0),
+           population = name) %>%
+    dplyr::mutate(broad_region = factor(broad_region, levels = c(
+      "Alaska", 
+      
+      "North Coast BC", 
+      
+      "West Coast Vancouver Island", 
+      
+      "South Coast BC",  
+      
+      "Puget Sound - Net",  
+      "Puget Sound - Sport",  
+      
+      "Washington Coast - Net",
+      
+      "North of Falcon - Sport", 
+      "North of Falcon - Troll", 
+      
+      "South of Falcon"
+    ))) %>%
+    filter(!is.na(broad_region))  
+  
+  plot_list[[i]] <- ggplot(plot_data,
+                           aes(x = year,
+                               y = percent_mort,
+                               group = broad_region,   # preserves original %s
+                               fill  = broad_region )) +
+    geom_area(color = "black", size = 0.2, alpha = 0.9) +
+    # facet_grid(gear~ season) +
+    scale_y_continuous(
+      limits = c(0, 100),
+      expand = c(0, 0),
+      name = "Percent of total run (%)"
+    ) +
+    scale_x_continuous(
+      name = "Year",
+      expand = c(0, 0)
+    ) +
+    labs(fill = "Fishery Region", title = paste0(name)) +
+    theme_minimal() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.spacing = unit(1, "lines")
+    ) + 
+    scale_fill_viridis_d(drop = FALSE)  # Also important: don't drop unused levels
+}
+
+for(i in seq_along(plot_list)) {
+  name = op_pops[[i]]
+  ggsave(paste0("output/plots/OP_Chinook_IndividPop_Area", name, ".jpeg"),
+         plot = plot_list[[i]], 
+         width = 8, height = 6)
+}
+
+
+
+# ## geom area =====
+# OP_FM <- ggplot(Oly_Pen_fish %>% filter(!is.na(gear), !gear == "NA", !percent_mort ==0),
+#                 aes(x = year,
+#                     y = percent_mort,
+#                     group = fishery_region,   # preserves original %s
+#                     fill  = broad_region )) +
+#   geom_area(color = "black", size = 0.2, alpha = 0.9) +
+#   facet_grid(gear~ season) +
+#   scale_y_continuous(
+#     limits = c(0, 100),
+#     expand = c(0, 0),
+#     name = "Percent of total run (%)"
+#   ) +
+#   scale_x_continuous(
+#     name = "Year",
+#     expand = c(0, 0)
+#   ) +
+#   labs(fill = "Fishery Region", title = "OP Chinook Fishing Mortality") +
+#   theme_minimal() +
+#   theme(
+#     panel.grid.minor = element_blank(),
+#     panel.spacing = unit(1, "lines")
+#   ) + 
+#   scale_fill_viridis_d()
+# 
+# OP_FM
+# ggsave("plots/OP_Chinook_FishingMortality.jpeg", width = 8, height = 6)
+# 
+
+# Northern OR Coast ======
+N_OR_fish <- catch_distributions %>% 
+  filter(region == "OC") %>% 
+  # left_join(data %>% select( year,population,region,total_run)) %>%
+  left_join(total_run_df) %>% 
+  dplyr::mutate(total_run = as.numeric(total_run),
+                number_mort = total_run*percent_mort) %>%
+  group_by(year, region, fishery_region) %>%
+  dplyr::summarise(total_mort = sum(number_mort),
+                   total_run = sum(total_run)) %>% 
+  dplyr::mutate(percent_mort = total_mort/total_run,
+                gear = case_when(
+                  str_ends(fishery_region, "_t") ~ "Troll",
+                  str_ends(fishery_region, "_n") ~ "Net",
+                  str_ends(fishery_region, "_s") ~ "Sport",
+                  # fishery_region == "stray"      ~ "stray",
+                  TRUE                           ~ "NA"),
+                broad_region = case_when(
+                  # Alaska
+                  str_detect(fishery_region, "^seak")     ~ "Southeast Alaska",
+                  str_detect(fishery_region, "^ak_term")  ~ "Alaska Terminal",
+                  
+                  # Canada
+                  str_detect(fishery_region, "^wcvi")     ~ "West Coast Vancouver Island",
+                  str_detect(fishery_region, "^nbc")      ~ "North Coast BC",
+                  str_detect(fishery_region, "^sbc")      ~ "South Coast BC",
+                  str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
+                  
+                  # South of Falcon (US)
+                  str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+                  str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
+                  str_detect(fishery_region, "^wac")      ~ "Washington Coast",
+                  str_detect(fishery_region, "^PS")       ~ "Puget Sound",
+                  str_detect(fishery_region, "^US_term")  ~ "US Terminal",
+                  
+                  # Other
+                  fishery_region == "stray"               ~ "Stray",
+                  TRUE                                    ~ "NA"))
+
+N_OR_FM <- ggplot(N_OR_fish %>% filter(!is.na(gear), 
+                                       !gear == "NA", 
+                                       !percent_mort ==0),
+                aes(x = year,
+                    y = percent_mort,
+                    group = fishery_region,   # preserves original %s
+                    fill  = broad_region )) +
+  geom_area(color = "black", size = 0.2, alpha = 0.9) +
+  facet_grid( ~ gear) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    expand = c(0, 0),
+    name = "Percent of total run (%)"
+  ) +
+  scale_x_continuous(
+    name = "Year",
+    expand = c(0, 0)
+  ) +
+  labs(fill = "Fishery Region", title = "N OR Chinook Fishing Mortality") +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  ) + 
+  scale_fill_viridis_d()
+
+N_OR_FM
+ggsave("plots/NOR_Chinook_FishingMortality.jpeg", width = 8, height = 6)
+
+# Nisqually ======= 
+Nisqually_fish <- catch_distributions %>%
+  filter(population == "Nisqually") %>% 
+  # filter(population %in% c("Quillayute_fa","Queets_fa","Hoh_fa","Hoh_sp","Queets_sp")) %>% # include Grays harbor
+  # dplyr::mutate(season = case_when(str_ends(population, "_fa") ~ "fall",
+  #                                  str_ends(population, "_sp") ~ "spring",
+  #                                  TRUE ~ "NA")) %>%
+  # left_join(data %>% select( year,population,region,total_run)) %>%
+  # left_join(total_run_df) %>% 
+  # dplyr::mutate(total_run = as.numeric(total_run),
+  #               number_mort = total_run*percent_mort) %>%
+  # group_by(year, region, season, fishery_region) %>%
+  # dplyr::summarise(total_mort = sum(number_mort),
+  #                  total_run = sum(total_run)) %>% 
+  dplyr::mutate(#percent_mort = total_mort/total_run,
+    gear = case_when(
+      str_ends(fishery_region, "_t") ~ "Troll",
+      str_ends(fishery_region, "_n") ~ "Net",
+      str_ends(fishery_region, "_s") ~ "Sport",
+      # fishery_region == "stray"      ~ "stray",
+      TRUE                           ~ "NA"),
+    broad_region = case_when(
+      # Alaska
+      str_detect(fishery_region, "^seak")     ~ "Southeast Alaska",
+      str_detect(fishery_region, "^ak_term")  ~ "Alaska Terminal",
+      
+      # Canada
+      str_detect(fishery_region, "^wcvi")     ~ "West Coast Vancouver Island",
+      str_detect(fishery_region, "^nbc")      ~ "North Coast BC",
+      str_detect(fishery_region, "^sbc")      ~ "South Coast BC",
+      str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
+      
+      # South of Falcon (US)
+      str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+      str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
+      str_detect(fishery_region, "^wac")      ~ "Washington Coast",
+      str_detect(fishery_region, "^PS")       ~ "Puget Sound",
+      str_detect(fishery_region, "^US_term")  ~ "US Terminal",
+      
+      # Other
+      fishery_region == "stray"               ~ "Stray",
+      TRUE                                    ~ "NA"))
+
+
+Nisqually_FM <- ggplot(Nisqually_fish %>% filter(!is.na(gear),
+                                                 !gear == "NA", 
+                                                 !percent_mort ==0),
+                       aes(x = year,
+                           y = percent_mort,
+                           #group = gear#,   # preserves original %s 
+                           fill  = fishery_region 
+                       )) +
+  geom_area(color = "black", size = 0.2, alpha = 0.9) +
+  # facet_grid( ~ gear) +
+  # scale_y_continuous(
+  #   limits = c(0, 100),
+  #   expand = c(0, 0),
+  #   name = "Percent of total run (%)"
+  # ) +
+  # scale_x_continuous(
+  #   name = "Year",
+  #   expand = c(0, 0)
+  # ) +
+  labs(fill = "Fishery Region", title = "Nisqually Chinook Fishing Mortality") +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  ) + 
+  scale_fill_viridis_d()
+
+Nisqually_FM
+ggsave("plots/Nisqually_Chinook_FishingMortality.jpeg", width = 8, height = 6)
+
+
+
+Nisqually_FM <- ggplot(Nisqually_fish %>% filter(!is.na(gear),
+                                                 !gear == "NA", 
+                                                 !percent_mort ==0),
+                       aes(x = year,
+                           y = percent_mort,
+                           #group = gear#,   # preserves original %s 
+                           fill  = broad_region 
+                       )) +
+  geom_area(color = "black", size = 0.2, alpha = 0.9) +
+  facet_grid( ~ gear) +
+  # scale_y_continuous(
+  #   limits = c(0, 100),
+  #   expand = c(0, 0),
+  #   name = "Percent of total run (%)"
+  # ) +
+  # scale_x_continuous(
+  #   name = "Year",
+  #   expand = c(0, 0)
+  # ) +
+  labs(fill = "Fishery Region", title = "Nisqually Chinook Fishing Mortality") +
+  theme_minimal() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(1, "lines")
+  ) + 
+  scale_fill_viridis_d()
+
+Nisqually_FM
+ggsave("plots/Nisqually_Chinook_FishingMortality_gear.jpeg", width = 8, height = 6)
+

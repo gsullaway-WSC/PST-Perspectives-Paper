@@ -15,13 +15,13 @@ library(readxl)
 # by fisher or independent monitoring programs. Total landed catch is the landed 
 # weight of all species in the groundfish trawl fishery.
  
-table1 <- read_excel("data/salmon_catch_tables.xlsx", sheet =1)  %>%
+table1 <- read_excel("data/BC_salmon_catch_tables.xlsx", sheet =1)  %>%
   data.frame() %>% 
   dplyr::mutate(Fishing_Season = Groundfish.Fishery,
                 Total_Salmon_Numbers = as.numeric(Total.salmon....of.fish.))
  
 # Read data
-table1 <- read_excel("data/salmon_catch_tables.xlsx", sheet = 1) %>%
+table1 <- read_excel("data/BC_salmon_catch_tables.xlsx", sheet = 1) %>%
   data.frame() %>% 
   dplyr::mutate(
     Fishing_Season = Groundfish.Fishery,
@@ -85,7 +85,7 @@ ggplot(data = table1,
 # WCVI = West Coast Vancouver Island. Catch with Region UNK could not be 
 # associated to a single geographic Region.
 
-table3 <- read_excel("data/salmon_catch_tables.xlsx", sheet =2) 
+table3 <- read_excel("data/BC_salmon_catch_tables.xlsx", sheet =2) 
 
 # Table 5 =====
 # CWT analysis  

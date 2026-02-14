@@ -483,8 +483,8 @@ run_full_analysis <- function(input_data, ocean_ages) {
     year_effects = year_effects,
     year_plot = year_plot,
     diagnostics = diagnostic_plots,   
-    data = df_prepared,
-    formula = formula(final_base_model)   
+    data = df_prepared#,
+    #formula = formula(final_base_model)   
   ))
 }
 # 8. COMPARE MODELS ACROSS AGES ============================================================================
@@ -532,7 +532,7 @@ df <- read_csv("data/OP_Chinook_RMIS_tidy.csv") %>%
 # all_results <-list(results1,results1,results1,results1)
  
 # once they work individually, run them all in one so its easier for plotting etc. 
- results <- run_full_analysis(input_data = df, ocean_ages = 1:5)
+ results <- run_full_analysis(input_data = df, ocean_ages = 2:4)
  
  write_rds(results, "output/sizeatage_LME_results.RDS")
   

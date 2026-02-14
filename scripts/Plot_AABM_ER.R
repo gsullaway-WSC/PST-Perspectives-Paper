@@ -55,6 +55,7 @@ corr_df_raw <- data %>%
     exploitation_rate = tot_mixedER*100, #(aabm_tot / total_run) * 100,
     avg_run = mean(total_run, na.rm = TRUE),
     avg_catch = mean(aabm_tot, na.rm = TRUE),
+    avg_ER = mean(exploitation_rate, na.rm = TRUE),
     weak_stock = total_run < avg_run, 
     high_exploitation = exploitation_rate > mean(exploitation_rate, na.rm = TRUE),
     high_aabm = aabm_tot > mean(aabm_tot, na.rm = TRUE), 
@@ -96,87 +97,6 @@ print(corr_summary)
 
 # ===== VISUALIZATION OPTIONS =====
 
-## OPTION 1: Unstandardized time series showing mismatch ======
-plot1_unstandardized <- ggplot(corr_df_raw, aes(x = year)) +
-  geom_col(aes(y = total_run), fill = "lightblue", alpha = 0.6) +
-  geom_line(aes(y = aabm_tot), color = "darkred", size = 1.2) +
-  geom_point(aes(y = aabm_tot), color = "darkred", size = 2) +
-  geom_hline(aes(yintercept = avg_run), linetype = "dashed", color = "blue", alpha = 0.5) +
-  facet_wrap(~ population, scales = "free_y", ncol = 3) +
-  labs(
-    title = "Aggregate Abundance Management Fails to Protect Weak Stocks",
-    subtitle = "Red line (AABM catch) doesn't scale with blue bars (actual run size)",
-    y = "Abundance (number of fish)",
-    x = "Year",
-    caption = "Dashed line = average run size. When stocks are low, AABM catch remains high."
-  ) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    plot.title = element_text(face = "bold", size = 14)
-  )
-
-print(plot1_unstandardized)
-
-## OPTION 2: Exploitation rate over time  ======
-plot2_exploitation <- ggplot(corr_df_raw, aes(x = year, y = exploitation_rate)) +
-  geom_line(size = 1, color = "steelblue") +
-  geom_point(aes(color = weak_stock), size = 2) +
-  geom_hline(yintercept = 50, linetype = "dashed", color = "red", alpha = 0.5) +
-  facet_wrap(~ population, scales = "free_y", ncol = 3) +
-  scale_color_manual(
-    values = c("TRUE" = "red", "FALSE" = "steelblue"),
-    labels = c("TRUE" = "Below average run", "FALSE" = "Above average run"),
-    name = "Stock Status"
-  ) +
-  labs(
-    title = "Exploitation Rates Don't Decrease When Stocks Are Weak",
-    subtitle = "Red points = below-average run years still face fishing pressure",
-    y = "Exploitation Rate (%)",
-    x = "Year"
-  ) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    legend.position = "bottom"
-  )
-
-print(plot2_exploitation)
-
-## OPTION 3: Highlight years when weak stocks face high exploitation  ======
-plot3_vulnerability <- ggplot(corr_df_raw, aes(x = year)) +
-  # Shade vulnerable periods (weak stock + high exploitation)
-  geom_rect(
-    data = corr_df_raw %>% filter(weak_stock & high_exploitation),
-    aes(xmin = year - 0.5, xmax = year + 0.5, ymin = -Inf, ymax = Inf),
-    fill = "red", alpha = 0.15
-  ) +
-  geom_line(aes(y = total_run, color = "Total Run"), size = 1) +
-  geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
-  geom_hline(aes(yintercept = avg_run), linetype = "dashed", color = "blue") +
-  facet_wrap(~ population, scales = "free_y", ncol = 3) +
-  scale_color_manual(
-    values = c("Total Run" = "steelblue", "AABM Catch" = "darkred"),
-    name = "Type"
-  ) +
-  labs(
-    title = "Vulnerable Periods: Weak Stocks Face High Exploitation",
-    subtitle = "Red shading = below-average runs overlap with above-average AABM exploitation rates",
-    y = "Abundance",
-    x = "Year"
-  ) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    legend.position = "bottom"
-  )
-
-print(plot3_vulnerability)
-
-### OPTION 3B: Highlight years when weak stocks overlap with high AABM  ======
-# plot 3 used high exploitation rates but i am not sure if those are AABM or all mixed stock fishing 
-unique(corr_df_raw_labeled$population)
-
 corr_df_raw_labeled <- corr_df_raw %>%
   mutate(population = case_when( population == "Hoh_sp" ~ "Hoh S.",
                                  population == "Hoh_fa" ~ "Hoh F.",
@@ -193,103 +113,85 @@ corr_df_raw_labeled <- corr_df_raw %>%
   ungroup() %>%
   dplyr::mutate(  population_label = fct_reorder(population_label, n_vulnerable, .desc = TRUE))
 
+### 3A: Highlight years when weak stocks overlap with high AABM  ======
+# plot 3 used high exploitation rates but i am not sure if those are AABM or all mixed stock fishing 
 
-# mutate(
-#   population_label = factor(
-#     population_label,
-#     levels = unique(population_label[order(-n_vulnerable)])  # negative sign for descending
+# plot3A_vulnerability <- ggplot(corr_df_raw_labeled, aes(x = year)) +
+#   # Shade vulnerable periods (weak stock + high exploitation)
+#   geom_rect(
+#     data = corr_df_raw_labeled %>% filter(weak_stock & high_aabm),
+#     aes(xmin = year - 0.5, xmax = year + 0.5, ymin = -Inf, ymax = Inf),
+#     fill = "red", alpha = 0.15
+#   ) +
+#   geom_line(aes(y = total_run, color = "Total Run"), size = 1) +
+#   geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
+#   geom_hline(aes(yintercept = avg_run), linetype = "dashed", color = "blue") +
+#   facet_wrap(~ population_label, scales = "free_y", ncol = 3) +
+#   scale_color_manual(
+#     values = c("Total Run" = "steelblue", "AABM Catch" = "darkred"),
+#     name = "Type"
+#   ) +
+#   labs(
+#     title = "Vulnerable Periods: Weak Stocks Face High Exploitation",
+#     subtitle = "Red shading = below-average runs overlap with above-average AABM catch\nn = number of vulnerable years",
+#     y = "Abundance",
+#     x = "Year"
+#   ) +
+#   theme_bw() +
+#   theme(
+#     strip.text = element_text(face = "bold"),
+#     legend.position = "bottom"
 #   )
-# )
-# Create the plot using the labeled population variable
-plot3B_vulnerability <- ggplot(corr_df_raw_labeled, aes(x = year)) +
+# 
+# print(plot3A_vulnerability)
+# ggsave("plots/plot3A_vulnerability.jpeg", width = 8, height =6)
+
+## 3B with points =========
+plot_aabm_points <- corr_df_raw_labeled %>%
+  dplyr::mutate( ER_point_colors = case_when(weak_stock ==TRUE & high_exploitation == TRUE ~ "Vulnerable",
+                                          TRUE ~ "Average"),
+                 AABM_point_colors = case_when(weak_stock ==TRUE & aabm_tot == TRUE ~ "high",
+                                             TRUE ~ "low"))
+
+plot3B_vulnerability <- ggplot(plot_aabm_points, aes(x = year,y = total_run)) +
   # Shade vulnerable periods (weak stock + high exploitation)
   geom_rect(
-    data = corr_df_raw_labeled %>% filter(weak_stock & high_aabm),
+    data = plot_aabm_points %>% filter(weak_stock & high_aabm),
     aes(xmin = year - 0.5, xmax = year + 0.5, ymin = -Inf, ymax = Inf),
     fill = "red", alpha = 0.15
   ) +
-  geom_line(aes(y = total_run, color = "Total Run"), size = 1) +
-  geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
+  geom_point( data = plot_aabm_points %>% filter(ER_point_colors == "Vulnerable"),
+              aes(color = ER_point_colors)) +
+  geom_line() + 
+  # geom_line(aes(y = total_run, color = "Total Run", size = 1)) +
+  # geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
   geom_hline(aes(yintercept = avg_run), linetype = "dashed", color = "blue") +
   facet_wrap(~ population_label, scales = "free_y", ncol = 3) +
   scale_color_manual(
-    values = c("Total Run" = "steelblue", "AABM Catch" = "darkred"),
-    name = "Type"
+    values = c("Average" = "forestgreen", "Vulnerable" = "red"),
+    name = " "
   ) +
   labs(
     title = "Vulnerable Periods: Weak Stocks Face High Exploitation",
-    subtitle = "Red shading = below-average runs overlap with above-average AABM catch\nn = number of vulnerable years",
+    subtitle = "Red shading/Red Points = Years with below-average runs and above-average AABM catch\nn = number of vulnerable years",
     y = "Abundance",
     x = "Year"
   ) +
   theme_bw() +
   theme(
-    strip.text = element_text(face = "bold"),
-    legend.position = "bottom"
+    strip.text = element_text(face = "bold")
   )
-
+ 
 print(plot3B_vulnerability)
-ggsave("plots/plot3B_vulnerability.jpeg", width = 8, height =6)
+ggsave("output/plots/plot3B_vulnerability.jpeg", width = 8, height =5)
 
-
-### OPTION 3C: Mean scale -- Highlight years when weak stocks overlap with high AABM  ======
-# plot 3 used high exploitation rates but i am not sure if those are AABM or all mixed stock fishing 
-
-corr_df_raw_labeledC <- corr_df_raw %>%
-  mutate(population = case_when( population == "Hoh_sp" ~ "Hoh S.",
-                                 population == "Hoh_fa" ~ "Hoh F.",
-                                 population == "Queets_sp" ~ "Queets S.",
-                                 population == "Queets_fa" ~ "Queets F.",
-                                 population == "Grays_Harbor_sp" ~ "Grays Harbor S.",
-                                 population == "Grays_Harbor_fa" ~ "Grays Harbor F.",
-                                 population == "Quillayute_fa" ~ "Quillayute F."
-  )) %>% 
-  group_by(population) %>%
-  dplyr::mutate(
-    n_vulnerable = sum(weak_stock & high_aabm, na.rm = TRUE),
-    population_label = paste0(population, " (n=", n_vulnerable, ")")) %>% 
-  ungroup() %>%
-  dplyr::mutate(  population_label = fct_reorder(population_label, n_vulnerable, .desc = TRUE)) %>%
-  group_by(population_label,population) %>%
-  dplyr::mutate(total_run = as.numeric(scale(total_run)),
-                aabm_tot = as.numeric(scale(aabm_tot)),
-  )
-
-# Create the plot using the labeled population variable
-plot3C_vulnerability <- ggplot(corr_df_raw_labeledC, aes(x = year)) +
-  # Shade vulnerable periods (weak stock + high exploitation)
-  geom_rect(
-    data = corr_df_raw_labeled %>% filter(weak_stock & high_aabm),
-    aes(xmin = year - 0.5, xmax = year + 0.5, ymin = -Inf, ymax = Inf),
-    fill = "red", alpha = 0.15
-  ) +
-  geom_line(aes(y = total_run, color = "Total Run"), size = 1) +
-  geom_line(aes(y = aabm_tot, color = "AABM Catch"), size = 1) +
-  geom_hline(aes(yintercept = 0), linetype = "dashed", color = "blue") +
-  facet_wrap(~ population_label, scales = "free_y", ncol = 3) +
-  scale_color_manual(
-    values = c("Total Run" = "steelblue", "AABM Catch" = "darkred"),
-    name = "Type"
-  ) +
-  labs(
-    title = "Vulnerable Periods: Weak Stocks Face High Exploitation",
-    subtitle = "Red shading = below-average runs overlap with above-average AABM catch\nn = number of vulnerable years",
-    y = "Abundance",
-    x = "Year"
-  ) +
-  theme_bw() +
-  theme(
-    strip.text = element_text(face = "bold"),
-    legend.position = "bottom"
-  )
-
-print(plot3C_vulnerability)
-ggsave("plots/plot3C_vulnerability.jpeg", width = 8, height =6)
-
-## OPTION 4: Scatter plot showing exploitation rate vs stock size  ======
-plot4_scatter <- ggplot(corr_df_raw, aes(x = total_run, y = exploitation_rate)) +
+##4A: Scatter plot showing exploitation rate vs stock size  ======
+plot4A_scatter <- ggplot( corr_df_raw, 
+                         aes(x = total_run, y = exploitation_rate)) +
+  # geom_rect(aes(xmin = -Inf, xmax = 0, ymin = avg_ER, ymax = Inf),
+  #           fill = "red", alpha = 0.02, inherit.aes = FALSE) +
   geom_point(aes(color = year), size = 3, alpha = 0.7) +
-  geom_vline(aes(xintercept = avg_run), linetype = "dashed", color = "red") +
+  # geom_vline(aes(xintercept = avg_run), linetype = "dashed", color = "red") +
   geom_smooth(method = "loess", se = TRUE, color = "black") +
   facet_wrap(~ population, scales = "free", ncol = 3) +
   scale_color_viridis_c(option = "plasma") +
@@ -303,69 +205,240 @@ plot4_scatter <- ggplot(corr_df_raw, aes(x = total_run, y = exploitation_rate)) 
   theme_bw() +
   theme(strip.text = element_text(face = "bold"))
 
-print(plot4_scatter)
+print(plot4A_scatter)
 
-## OPTION 5: Focus on Hoh_sp and Queets_sp (the most vulnerable)  ======
-problem_stocks <- corr_df_raw %>%
-  filter(population %in% c("Hoh_sp", "Queets_sp"))
+ggsave("output/plots/scatter_exploitationVSstocksize.jpg", plot4A_scatter, 
+       width = 12, height = 8, dpi = 300)
 
-plot5a_problem_stocks <- ggplot(problem_stocks, aes(x = year)) +
-  geom_col(aes(y = total_run), fill = "lightblue", alpha = 0.7) +
-  geom_line(aes(y = aabm_tot), color = "darkred", size = 1.5) +
-  geom_point(aes(y = aabm_tot), color = "darkred", size = 3) +
-  geom_hline(aes(yintercept = avg_run), linetype = "dashed", color = "blue") +
-  facet_wrap(~ population, scales = "free_y", ncol = 1) +
+## 4B: Scatter plot with quadrant, mean scale exploitation rate + stock size  ======
+plot4B_scatter <- ggplot( corr_df_raw %>% 
+                           group_by(population) %>% 
+                           dplyr::mutate(total_run= as.numeric(scale(total_run))),
+                         aes(x = total_run, y = exploitation_rate)) +
+  # Add quadrant backgrounds
+  geom_rect(aes(xmin = -Inf, xmax = 0, ymin = avg_ER, ymax = Inf),
+            fill = "red", alpha = 0.02, inherit.aes = FALSE) +
+  # geom_rect(aes(xmin = 0, xmax = Inf, ymin = avg_ER, ymax = Inf),
+  #           fill = "lightgreen", alpha = 0.02, inherit.aes = FALSE) +
+  geom_point(aes(color = year), size = 3, alpha = 0.7) +
+  geom_vline(aes(xintercept = 0), linetype = "dashed", color = "black") +
+  geom_hline(aes(yintercept = avg_ER), linetype = "dashed", color = "black") +
+  facet_wrap(~ population, scales = "free", ncol = 3) +
+  scale_color_viridis_c(option = "plasma") +
   labs(
-    y = "Abundance (number of fish)", 
-    title = "Most Vulnerable Stocks: Hoh Spring & Queets Spring",
-    subtitle = "Catch (red) doesn't decline proportionally with run size (blue)"
+    title = "Exploitation Rate vs Stock Size",
+    # subtitle = "Dashed lines indicate average run size (xaxis) and average exploitation rate (yaxis).",
+    x = "Total Run Size",
+    y = "Exploitation Rate (%)",
+    color = "Year"
   ) +
   theme_bw() +
+  theme(strip.text = element_text(face = "bold"),
+        legend.position = "bottom")
+
+print(plot4B_scatter)
+ggsave("output/plots/quadrant_exploitationVSstocksize.jpg", plot4B_scatter, 
+       width = 12, height = 8, dpi = 300)
+
+
+# # OPTION 6: Summary statistics table
+# vulnerability_summary <- corr_df_raw %>%
+#   group_by(population) %>%
+#   summarise(
+#     avg_run_size = mean(total_run, na.rm = TRUE),
+#     avg_catch = mean(aabm_tot, na.rm = TRUE),
+#     avg_exploitation_rate = mean(exploitation_rate, na.rm = TRUE),
+#     max_exploitation_rate = max(exploitation_rate, na.rm = TRUE),
+#     pct_years_weak = mean(weak_stock, na.rm = TRUE) * 100,
+#     pct_years_weak_AND_high_exploit = mean(weak_stock & high_exploitation, na.rm = TRUE) * 100,
+#     correlation = cor(aabm_tot, total_run, use = "complete.obs")
+#   ) %>%
+#   arrange(desc(pct_years_weak_AND_high_exploit))
+# 
+# print(vulnerability_summary)
+
+
+
+## 5 - Super Simple options =====
+### Traffic light visualization ======
+traffic_light_plot <- corr_df_raw_labeled %>%
+  mutate(
+    status = case_when(
+      weak_stock & high_exploitation ~ "High Risk",
+      weak_stock & !high_exploitation ~ "Caution",
+      !weak_stock & high_exploitation ~ "Monitor",
+      TRUE ~ "Good"
+    ),
+    status = factor(status, levels = c("Good", "Monitor", "Caution", "High Risk"))
+  ) %>%
+  ggplot(aes(x = year, y = population, fill = status)) +
+  geom_tile(color = "white", size = 1) +
+  scale_fill_manual(
+    values = c("Good" = "#2E7D32", 
+               "Monitor" = "#FDD835", 
+               "Caution" = "#FB8C00",
+               "High Risk" = "#C62828"),
+    name = "Stock Status"
+  ) +
+  labs(
+    title = "Salmon Stock Health Over Time",
+    subtitle = "Red = Low abundance + High fishing pressure (most vulnerable)\nGreen = Healthy abundance",
+    x = "Year",
+    y = ""
+  ) +
+  theme_minimal(base_size = 14) +
   theme(
-    strip.text = element_text(face = "bold", size = 12),
-    axis.title.x = element_blank()
+    panel.grid = element_blank(),
+    legend.position = "bottom",
+    axis.text.y = element_text(face = "bold")
   )
 
-plot5b_problem_exploitation <- ggplot(problem_stocks, aes(x = year, y = exploitation_rate)) +
-  geom_line(size = 1.5, color = "darkred") +
-  geom_point(size = 3, color = "darkred") +
-  geom_hline(yintercept = 50, linetype = "dashed", color = "black", alpha = 0.5) +
-  facet_wrap(~ population, ncol = 1) +
-  labs(
-    y = "Exploitation Rate (%)", 
-    x = "Year",
-    title = "Exploitation Rate Remains High Even in Weak Years"
-  ) +
-  theme_bw() +
-  theme(strip.text = element_text(face = "bold", size = 12))
+print(traffic_light_plot)
+ggsave("output/plots/traffic_light_status.jpg", traffic_light_plot, 
+       width = 10, height = 6, dpi = 300)
 
-# Combine the problem stock plots
-plot5_combined <- plot5a_problem_stocks / plot5b_problem_exploitation
 
-print(plot5_combined)
-
-# OPTION 6: Summary statistics table
-vulnerability_summary <- corr_df_raw %>%
+## Imbalance score visualization ======
+imbalance_data <- corr_df_raw_labeled %>%
   group_by(population) %>%
   summarise(
-    avg_run_size = mean(total_run, na.rm = TRUE),
-    avg_catch = mean(aabm_tot, na.rm = TRUE),
-    avg_exploitation_rate = mean(exploitation_rate, na.rm = TRUE),
-    max_exploitation_rate = max(exploitation_rate, na.rm = TRUE),
-    pct_years_weak = mean(weak_stock, na.rm = TRUE) * 100,
-    pct_years_weak_AND_high_exploit = mean(weak_stock & high_exploitation, na.rm = TRUE) * 100,
-    correlation = cor(aabm_tot, total_run, use = "complete.obs")
+    # Years when fishing was high despite low abundance
+    risky_years = sum(weak_stock & high_exploitation, na.rm = TRUE),
+    # Years when fishing was appropriately low with low abundance
+    protective_years = sum(weak_stock & !high_exploitation, na.rm = TRUE),
+    total_weak_years = sum(weak_stock, na.rm = TRUE),
+    # Calculate "protection rate" when stocks are weak
+    protection_rate = if_else(total_weak_years > 0, 
+                              protective_years / total_weak_years * 100, 
+                              NA_real_)
   ) %>%
-  arrange(desc(pct_years_weak_AND_high_exploit))
+  arrange(protection_rate)
 
-print(vulnerability_summary)
+imbalance_plot <- ggplot(imbalance_data, 
+                         aes(x = reorder(population, protection_rate), 
+                             y = protection_rate)) +
+  geom_col(aes(fill = protection_rate), width = 0.7) +
+  geom_hline(yintercept = 50, linetype = "dashed", color = "gray30", size = 1) +
+  coord_flip() +
+  scale_fill_gradient2(
+    low = "#C62828", 
+    mid = "#FDD835", 
+    high = "#2E7D32",
+    midpoint = 50,
+    name = "% Protected"
+  ) +
+  labs(
+    title = "How Well Are Weak Stocks Protected?",
+    subtitle = "When salmon runs are below average, how often is fishing pressure also reduced?\nAbove 50% = fishing adjusts appropriately | Below 50% = fishing stays high despite low abundance",
+    x = "",
+    y = "% of Low-Abundance Years with Reduced Fishing Pressure"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "none",
+    panel.grid.major.y = element_blank()
+  )
 
-# Save key plots
-ggsave("figures/aabm_weak_stocks_unstandardized.png", plot1_unstandardized, 
+print(imbalance_plot)
+ggsave("output/plots/protection_rate_bars.jpg", imbalance_plot, 
+       width = 10, height = 6, dpi = 300)
+
+## Simplified scatter with zones ======
+simple_scatter <- corr_df_raw_labeled %>%
+  mutate(
+    zone = case_when(
+      total_run >= avg_run & exploitation_rate >= avg_ER ~ "High abundance,\nHigh fishing\n", 
+      total_run >= avg_run & exploitation_rate < avg_ER ~  "High abundance,\nLow fishing\n(Low Risk)",
+      total_run < avg_run & exploitation_rate >= avg_ER ~ "Low abundance,\nHigh fishing\n(High Risk)", 
+      total_run < avg_run & exploitation_rate < avg_ER ~ "Low abundance,\nLow fishing\n"
+    ),
+    zone = factor(zone, levels = c(
+      "Low abundance,\nLow fishing\n",
+      "Low abundance,\nHigh fishing\n(High Risk)", 
+      "High abundance,\nLow fishing\n(Low Risk)",
+      "High abundance,\nHigh fishing\n" 
+    ))
+  ) %>%
+  filter(!is.na(zone))
+
+simple_plot <- ggplot(simple_scatter, 
+                      aes(x = total_run, y = exploitation_rate)) +
+  geom_vline(aes(xintercept = avg_run), linetype = "dashed", 
+             color = "gray40", size = 0.8) +
+  geom_hline(aes(yintercept = avg_ER), linetype = "dashed", 
+             color = "gray40", size = 0.8) +
+  geom_point(aes(color = zone, shape = zone), size = 4, alpha = 0.8) +
+  facet_wrap(~ population, scales = "free", ncol = 3) +
+  scale_color_manual(
+    values = c(
+      "Low abundance,\nLow fishing\n" = "#2E7D32",
+      "Low abundance,\nHigh fishing\n(High Risk)" = "#C62828",
+      "High abundance,\nLow fishing\n(Low Risk)" = "#1976D2",
+      "High abundance,\nHigh fishing\n" = "#388E3C"
+    ),
+    name = ""
+  ) +
+  scale_shape_manual(
+    values = c(16, 17, 15, 18),
+    name = ""
+  ) +
+  labs(
+    title = "Exploitation Rate vs Individual Run Size",
+    # subtitle = "Dashed lines show average values | Red points = concerning pattern",
+    x = "Salmon Run Size",
+    y = "Exploitation Rate (%)"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  ) +
+  guides(color = guide_legend(nrow = 2),
+         shape = guide_legend(nrow = 2))
+
+print(simple_plot)
+ggsave("output/plots/simple_zones_scatterFACET.jpg", simple_plot, 
        width = 12, height = 8, dpi = 300)
-ggsave("figures/aabm_exploitation_rates.png", plot2_exploitation, 
+
+simple_scatter_meanscale <- simple_scatter %>% 
+  group_by(population) %>%
+  dplyr::mutate(total_run = as.numeric(scale(total_run)),
+                exploitation_rate = as.numeric(scale(exploitation_rate)))
+  
+simple_plot <- ggplot(simple_scatter_meanscale, 
+                      aes(x = total_run, y = exploitation_rate)) +
+  geom_vline(aes(xintercept = 0), linetype = "dashed", 
+             color = "gray40", size = 0.8) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", 
+             color = "gray40", size = 0.8) +
+  geom_point(aes(color = zone, shape = population), size = 4, alpha = 0.8) +
+  # facet_wrap(~ population, scales = "free", ncol = 3) +
+  scale_color_manual(
+    values = c(
+      "Low abundance,\nLow fishing\n" = "gray",
+      "Low abundance,\nHigh fishing\n(High Risk)" = "#C62828",
+      "High abundance,\nLow fishing\n(Low Risk)" = "gray",
+      "High abundance,\nHigh fishing\n" = "gray"
+    ),
+    name = ""
+  ) + 
+  labs(
+    title = "Exploitation Rate vs OP Chinook Salmon Run Sizes",
+    # subtitle = "Dashed lines show average values | Red points = concerning pattern",
+    x = "Salmon Run Size (Mean-Scaled))",
+    y = "Exploitation Rate (Mean-Scaled)",
+    shape = "Population"
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10)
+  ) +
+  guides(color = guide_legend(nrow = 2),
+         shape = guide_legend(nrow = 2))
+
+print(simple_plot)
+ggsave("output/plots/simple_zones_scatter.jpg", simple_plot, 
        width = 12, height = 8, dpi = 300)
-ggsave("figures/aabm_vulnerable_periods.png", plot3_vulnerability, 
-       width = 12, height = 8, dpi = 300)
-ggsave("figures/aabm_problem_stocks_combined.png", plot5_combined, 
-       width = 10, height = 10, dpi = 300)
