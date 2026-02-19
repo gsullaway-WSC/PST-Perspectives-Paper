@@ -215,9 +215,17 @@ boxplot_first_last <- ggplot(boxplot_data, aes(x = period, y = predicted_length,
   facet_wrap(~ocean_age, scales = "free_x", labeller = labeller(ocean_age = function(x) paste("Ocean Age", x)))
 
 boxplot_first_last
+ 
+# Predicted lengths Stacked ====== # Convert mm to inches first
+combined_effects_in <- combined_effects %>%
+  mutate(
+    predicted_length  = predicted_length / 25.4,
+    predicted_lower   = predicted_lower / 25.4,
+    predicted_upper   = predicted_upper / 25.4
+  )
 
 # Predicted lengths Stacked ====== 
-predicted_plot_together <- ggplot(combined_effects %>% filter(!ocean_age %in% c(1,5)), 
+predicted_plot_together <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5)), 
                                   aes(x = year, y = predicted_length, 
                                       color = factor(ocean_age), 
                                       fill = factor(ocean_age))) +
@@ -225,12 +233,6 @@ predicted_plot_together <- ggplot(combined_effects %>% filter(!ocean_age %in% c(
   geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
   geom_line(size = 1.2, na.rm = TRUE) +
   geom_point(size = 2) +
-  # Add horizontal lines for first 5 and last 5 year means
-  # geom_segment(data = first_last_means,
-  #              aes(x = min_year, xend = max_year, 
-  #                  y = mean_length, yend = mean_length,
-  #                  color = "black" ),
-  #              size = 1.5,  linetype = "solid") +
   scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
                                 "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
                      name = "Ocean Age") +
@@ -238,20 +240,22 @@ predicted_plot_together <- ggplot(combined_effects %>% filter(!ocean_age %in% c(
                                "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
                     name = "Ocean Age") +
   labs(
-    title = "Trends in Olympic Peninsula Chinook Predicted Length-at-Age",
-    # subtitle = "Solid grey lines represent 5-year average length",
+    title = "Trends in Olympic Peninsula Chinook Salmon\nPredicted Length-at-Age",
     x = "Brood Year",
-    y = "Predicted length (mm)"
+    y = "Predicted Length (in)"
   ) +
   theme_bw(base_size = 14) +
   theme(
     legend.position = "bottom",
     panel.grid.minor = element_blank(),
-    plot.title = element_text(face = "bold", size = 16),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
     legend.title = element_text(face = "bold")
   ) 
 
 predicted_plot_together
+
+ggsave("output/plots/size_at_age_predicted_together.png", predicted_plot_together, 
+       width = 8, height = 9, dpi = 300)
 
 # Predicted lengths Faceted ====== 
 predicted_plot_facet <- ggplot(combined_effects %>% filter(!ocean_age %in% c(1,5)), 
@@ -357,8 +361,8 @@ boxplot_fecundity_first_last
 # Save ====== 
 ggsave("output/plots/size_at_age_effects_ESTIMATED.png", effects_plot, 
        width = 12, height = 8, dpi = 300)
-ggsave("output/plots/size_at_age_predicted_together.png", predicted_plot_together, 
-       width = 8, height = 10, dpi = 300)
+# ggsave("output/plots/size_at_age_predicted_together.png", predicted_plot_together, 
+#        width = 8, height = 9, dpi = 300)
 ggsave("output/plots/size_at_age_predicted_facet.png", predicted_plot_facet, 
        width = 12, height = 8, dpi = 300)
 ggsave("output/plots/size_at_age_boxplot_first_last.png", boxplot_first_last, 

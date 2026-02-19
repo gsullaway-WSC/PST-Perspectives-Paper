@@ -2,11 +2,19 @@ library(tidyverse)
 library(here)
 library(readxl)
 library(viridis)
+library(cowplot) 
 
-# # columns are the region_ either: n=Net, s=Sport, t=Troll.
-# col_index <- which(names(data) == "er")
-# col_index
+# custom colors =====
+custom_pal <- c(
+  "Washington Coast\nIn-River" =  "#D3D3D3",  # light gray
+  "Washington Coast\nOcean"    =  "#8B7BB5",
+  "South of Falcon"           =  "#0096C7",  #"#2A788E",
+  "Puget Sound"               =  "#7AD151",
+  "British Columbia"          =  "#57A773",
+  "Alaska"                    =  "#FDE725"  # viridis purple for Alaska
+)
 
+# load ====== 
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
   filter(region == "OP", !year == 2023) # NAs 
  
@@ -36,8 +44,8 @@ Oly_Pen_fish <- catch_distributions %>%
                   str_detect(fishery_region, "^seak") ~ "Alaska",
                   str_detect(fishery_region, "^ak_term")  ~ "Alaska",
                   
-                  str_detect(fishery_region, "^US_term")  ~ "Washington Coast In-River",
-                  str_detect(fishery_region, "^term_tot")  ~ "Washington Coast In-River",
+                  str_detect(fishery_region, "^US_term")  ~ "Washington Coast\nIn-River",
+                  str_detect(fishery_region, "^term_tot")  ~ "Washington Coast\nIn-River",
 
                    # Canada
                   str_detect(fishery_region, "^can_term")  ~ "British Columbia",
@@ -51,15 +59,15 @@ Oly_Pen_fish <- catch_distributions %>%
                   str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
                   # str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
                   
-                  fishery_region == "nfalc_s" ~ "Washington Coast Ocean",
-                  fishery_region == "nfalc_t" ~ "Washington Coast Ocean",
-                  fishery_region == "US_is_tot" ~ "Washington Coast Ocean",
+                  fishery_region == "nfalc_s" ~ "Washington Coast\nOcean",
+                  fishery_region == "nfalc_t" ~ "Washington Coast\nOcean",
+                  fishery_region == "US_is_tot" ~ "Washington Coast\nOcean",
 
                   # WA     
                   fishery_region == "PS_n" ~ "Puget Sound",
                   fishery_region == "PS_s" ~ "Puget Sound",
                   
-                  fishery_region == "wac_n" ~ "Washington Coast In-River",
+                  fishery_region == "wac_n" ~ "Washington Coast\nIn-River",
                   # Other
                   TRUE                                    ~ "Check")) 
 
@@ -81,52 +89,178 @@ total_FMnumbers <- Oly_Pen_fish %>%
   dplyr::summarise(total_FM_numbers = sum(mortality_numbers))  # want to ask, of all the fish caught that year, what was the relative proportions. Not related to overall runsize. 
 
 OP_plot_df<- Oly_Pen_fish %>% 
-  dplyr::select(-c(total_run, percent_mort,fishery_region))%>%
+  dplyr::select(-c(total_run, percent_mort,fishery_region)) %>%
   ungroup() %>%
   group_by(year, broad_region) %>%
   dplyr::summarise(mort_broad_region = sum(mortality_numbers)) %>% 
   left_join(total_FMnumbers) %>%
   dplyr::mutate(percent_mort = mort_broad_region/total_FM_numbers,
                 broad_region = factor(broad_region, levels = c(
-                  "Alaska", 
-                  # "Canada Terminal",
-                  "British Columbia",
-                  # "North Coast BC",  
-                  # "South Coast BC", 
-                  # "West Coast Vancouver Island",  
-                  # "US Terminal",
-                  "Puget Sound", 
-                  # "Washington Coast",
-                  # "North of Falcon",
+                  "Washington Coast\nIn-River",
+                  "Washington Coast\nOcean",  
                   "South of Falcon",
-                  "Washington Coast Ocean", 
-                  "Washington Coast In-River"
-                )))    
+                  "Puget Sound",
+                  "British Columbia", 
+                  "Alaska" 
+                  # "British Columbia", 
+                  # "Puget Sound",  
+                  # "South of Falcon",
+                  # "Washington Coast Ocean", 
+                  # "Washington Coast In-River"
+                )))
 
-## stacked bar ======               
+# bar and pie ==== 
+## 1. Prep pie chart data (last 5 years) ==========
+pie_df <- OP_plot_df %>%
+  filter(year >2008) %>%
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%  # match fill order
+  mutate(
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,  # midpoint of each slice
+    label = paste0(round(avg_mort * 100, 1), "%")  # format as percent
+  )
 
+## 2. Build pie chart ==========
+OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_text(aes(y = cum_pos, 
+                label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "") #label = label
+                ), 
+            size = 3, 
+            fontface = "bold",
+            color = "black") +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = custom_pal) + 
+#  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  labs(title = "Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+
+OP_pie
+
+##  3. Main bar chart ==================
 OP_FM_stacked <- ggplot(OP_plot_df,
+                            aes(x = year,
+                                y = percent_mort,
+                                fill = broad_region)) +
+                       geom_col(color = "black", alpha = 0.9, width = 1) +
+                       scale_y_continuous(
+                         expand = c(0, 0),
+                         name = "Proportion of Known Fishery Mortality",
+                         labels = scales::percent_format()
+                       ) +
+                       scale_x_continuous(
+                         name = "Year",
+                         expand = c(0, 0)
+                       ) +
+                      scale_fill_manual(values = custom_pal) + 
+                       # scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+                       labs(
+                         fill = "Fishery Region",
+                         title = "Olympic Peninsula Chinook Salmon",
+                         subtitle = "Proportional Fishery Mortality by Region & Year"
+                       ) +
+                       theme_minimal() +
+                       theme(
+                         panel.grid.minor = element_blank(),
+                         panel.spacing = unit(1, "lines"),
+                         legend.position = "none")
+
+## 4. Legend =============
+legend <- get_legend(ggplot(OP_plot_df,
                         aes(x = year,
                             y = percent_mort,
                             fill = broad_region)) +
-  geom_col(color = "black",alpha = 0.9, width = 1) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
   scale_y_continuous(
-    # limits = c(0, 1),
     expand = c(0, 0),
-    name = "Proportion of Fishery Mortality*",
+    name = "Proportion of Known Fishery Mortality",
     labels = scales::percent_format()
   ) +
   scale_x_continuous(
     name = "Year",
     expand = c(0, 0)
   ) +
-  labs(fill = "Fishery Region", title = "OP Chinook", caption = "*Known Fishery Mortality") +
+    scale_fill_manual(values = custom_pal) + 
+  # scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  labs(
+    fill = "Fishery Region",
+    title = "Olympic Peninsula Chinook Salmon",
+    subtitle = "Proportional Fishery Mortality by Region & Year"
+  ) +
+  theme_minimal() +
+  theme( 
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.margin = margin(0, 0, 0, 0),
+    legend.background = element_blank(),  # remove the grey border box
+    legend.box.background = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    panel.spacing = unit(1, "lines"),
+    legend.position = c(0.88, 0.3),# 0.35),   # nudge down so it clears the pie inset
+     legend.justification = c(1, 0),
+    legend.title = element_text(hjust = 0.5, size = 9, 
+                                face = "bold"),  # bigger title
+    legend.text = element_text(size = 6),                                # bigger text
+    legend.key.size = unit(0.5, "cm")                                    # bigger color boxes
+  ))
+
+## 4. Save: inset pie into upper right =========== 
+rightside <- ggpubr::ggarrange(OP_pie, legend, nrow = 2,
+                                heights = c(1, 1.2)) 
+rightside
+
+# Add a blank spacer on top to push content down and align pie with bar top
+spacer <- ggplot() + theme_void()  # empty plot as top padding
+
+rightside_padded <- ggpubr::ggarrange(spacer, rightside, nrow = 2,
+                                      heights = c(0.2, 1))  # adjust 0.3 to move down more
+
+final_plot <- ggpubr::ggarrange(OP_FM_stacked, rightside_padded,
+                                ncol = 2,
+                                widths = c(3.3, 1))
+final_plot
+# --- 5. Save as JPEG ---
+ggsave(
+  filename = "output/plots/OP_FM_stacked.jpeg",
+  plot = final_plot,
+  width =5,
+  height =5,
+  dpi = 300,
+  units = "in"
+)
+
+# old ==========
+## stacked bar ======             
+
+OP_FM_stacked <- ggplot(OP_plot_df,
+                        aes(x = year,
+                            y = percent_mort,
+                            fill = broad_region)) +
+  geom_col(color = "black",alpha = 0.9, width = 1) +
+  scale_y_continuous( 
+    expand = c(0, 0),
+    name = "Proportion of Known Fishery Mortality",
+    labels = scales::percent_format()
+  ) +
+  scale_x_continuous(
+    name = "Year",
+    expand = c(0, 0)
+  ) +
+  labs(fill = "Fishery Region", title = "Olympic Peninsula Chinook Salmon", subtitle= "Proportional Fishery Mortality by Region & Year") +
   theme_minimal() +
   theme(
     panel.grid.minor = element_blank(),
     panel.spacing = unit(1, "lines")
   ) + 
-  scale_fill_viridis_d(drop = FALSE)
+  scale_fill_viridis_d(drop = FALSE)#, option = "plasma")
 
 OP_FM_stacked
 
