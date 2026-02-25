@@ -6,10 +6,10 @@ library(cowplot)
 
 # custom colors =====
 custom_pal <- c(
-  "Washington Coast\nIn-River" =  "#D3D3D3",  # light gray
+  "Washington Coast\nIn-River" =  "#0096C7",   # light gray
   "Washington Coast\nOcean"    =  "#8B7BB5",
-  "South of Falcon"           =  "#0096C7",  #"#2A788E",
-  "Puget Sound"               =  "#7AD151",
+  "South of Falcon"           =  "#7AD151", #"#2A788E",
+  "Puget Sound"               =   "#D3D3D3",  
   "British Columbia"          =  "#57A773",
   "Alaska"                    =  "#FDE725"  # viridis purple for Alaska
 )
@@ -152,7 +152,7 @@ OP_FM_stacked <- ggplot(OP_plot_df,
                        geom_col(color = "black", alpha = 0.9, width = 1) +
                        scale_y_continuous(
                          expand = c(0, 0),
-                         name = "Proportion of Known Fishery Mortality",
+                         name = "Proportion of Fishery Mortality",
                          labels = scales::percent_format()
                        ) +
                        scale_x_continuous(
@@ -180,7 +180,7 @@ legend <- get_legend(ggplot(OP_plot_df,
   geom_col(color = "black", alpha = 0.9, width = 1) +
   scale_y_continuous(
     expand = c(0, 0),
-    name = "Proportion of Known Fishery Mortality",
+    name = "Proportion of Fishery Mortality",
     labels = scales::percent_format()
   ) +
   scale_x_continuous(
@@ -208,7 +208,7 @@ legend <- get_legend(ggplot(OP_plot_df,
      legend.justification = c(1, 0),
     legend.title = element_text(hjust = 0.5, size = 9, 
                                 face = "bold"),  # bigger title
-    legend.text = element_text(size = 6),                                # bigger text
+    legend.text = element_text(size = 8),                                # bigger text
     legend.key.size = unit(0.5, "cm")                                    # bigger color boxes
   ))
 
@@ -231,7 +231,7 @@ final_plot
 ggsave(
   filename = "output/plots/OP_FM_stacked.jpeg",
   plot = final_plot,
-  width =5,
+  width =5.5,
   height =5,
   dpi = 300,
   units = "in"
@@ -247,7 +247,7 @@ OP_FM_stacked <- ggplot(OP_plot_df,
   geom_col(color = "black",alpha = 0.9, width = 1) +
   scale_y_continuous( 
     expand = c(0, 0),
-    name = "Proportion of Known Fishery Mortality",
+    name = "Proportion of Fishery Mortality",
     labels = scales::percent_format()
   ) +
   scale_x_continuous(
@@ -378,7 +378,7 @@ for (i in 1:length(op_pops)) {
       name = "Year",
       expand = c(0, 0)
     ) +
-    labs(fill = "Fishery Region", title = paste0(name), caption = "*Known Fishery Mortality") +
+    labs(fill = "Fishery Region", title = paste0(name)) +
     theme_minimal() +
     theme(
       panel.grid.minor = element_blank(),

@@ -17,10 +17,10 @@ esc_goals <- read_csv("data/Escapement_goals_data_all_2026-02-19.csv") %>%
   rename(year = "Year") %>%
   filter(!is.na(Values) ) # this is just for grays harbor fall because double goals are confusing 
  
-head(esc_goals)
-ggplot(data = esc_goals, aes(x=year, y = Values, color = SeriesLabel)) +
-  geom_point() +
-  facet_wrap(~StockName, scales = "free")
+#  
+# ggplot(data = esc_goals, aes(x=year, y = Values, color = SeriesLabel)) +
+#   geom_point() +
+#   facet_wrap(~StockName, scales = "free")
 
 # Load data =====
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx")
@@ -47,9 +47,9 @@ name_lookup <- c(
 # Standardize OP_total_run_df
 OP_total_run_df <- OP_total_run_df %>%
   mutate(StockName = name_lookup[population])
-
-t<-joined_df %>%
-  filter(population == "Grays_Harbor_fa")
+# 
+# t<-joined_df %>%
+#   filter(population == "Grays_Harbor_fa")
 
 # Join
 joined_df <- OP_total_run_df %>%
@@ -179,14 +179,7 @@ ggsave("output/plots/esc_goal_plotER.jpeg",
        dpi = 300, units = "in")
 
 
-
-
-
-
-
-
-
-
+ 
 # Select stocks plot ====
 select_joined_df <- joined_df %>%
         filter(StockName %in% 
@@ -228,7 +221,7 @@ select_esc_goal_plot <- ggplot(select_joined_df,
   facet_wrap(~ StockName, scales = "free_y", ncol = 1) +
   
   labs(
-    title = "Olympic Peninsula Chinook Escapement vs. Goal",
+    title = "Olympic Peninsula Chinook- AABM Catch vs Escapement",
     subtitle = "Red shading = below escapement goal & above-average AABM catch (vulnerable years)\nDashed line = escapement goal",
     x = "Year", y = "Escapement"
   ) + 
@@ -275,22 +268,28 @@ select_esc_goal_plotER <- ggplot(select_joined_df,
                     name = "Escapement") +
   
   scale_y_continuous(labels = scales::comma, expand = c(0, 0)) +
-  scale_x_continuous(breaks = seq(1980, 2020, by = 10)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0, 0)) +
   
   # Add vulnerable year count to facet labels
   facet_wrap(~ StockName, scales = "free_y", ncol = 1) +
   
   labs(
-    title = "OP Chinook Escapement vs. Goal",
+    title = "High Ocean Harvest Occurs in Years with Low Escapement",
     subtitle = "Red shading = below escapement goal & above-average\nexploitation rates occurred.\nDashed line = escapement goal",
     x = "Year", y = "Escapement"
   ) + 
   theme_bw(base_size = 10) +
   theme(
     legend.position = "bottom",
-    strip.text = element_text(face = "bold", size = 9),
-    plot.title = element_text(face = "bold", hjust = 0.5, size = 12),
-    plot.subtitle = element_text(hjust = 0.5, size = 8, color = "grey40"),
+    axis.text = element_text(size = 16),      # tick labels (both axes)
+    # axis.text.x = element_text(size = 14),    # x tick labels only
+    # axis.text.y = element_text(size = 14),    # y tick labels only
+    axis.title = element_text(size = 18),     # axis titles (both)
+    # axis.title.x = element_text(size = 16),   # x axis title only
+    # axis.title.y = element_text(size = 16),
+    strip.text = element_text(face = "bold", size = 18),
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 24),
+    plot.subtitle = element_text(hjust = 0.5, size = 20, color = "grey40"),
     panel.grid.minor = element_blank()
   )
 
