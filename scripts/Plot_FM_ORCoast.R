@@ -3,12 +3,13 @@ library(here)
 library(readxl)
 library(viridis)
 library(cowplot) 
+library(ggrepel)
 
 # custom colors =====
 custom_pal <- c(
-  "Washington Coast\nIn-River" =  "#0096C7",    
-  "Washington Coast\nOcean"    =  "#8B7BB5",
-  "South of Falcon"           =  "#E8E8E8",   
+  "Oregon Coast\nIn-River" =  "#0096C7",    
+  "Oregon Coast"    =  "#8B7BB5",
+  "Washington"           =  "#E8E8E8",   
   "Puget Sound"               =   "grey",  
   "British Columbia"          =  "darkgrey",  
   "Alaska"                    =  "#888888")
@@ -24,10 +25,11 @@ custom_pal <- c(
 
 # load ====== 
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
-  filter(region == "OP", !year == 2023) # NAs 
+  filter(region %in% c("OC","ORC"),
+         !year == 2023, !is.na(total_run), !total_run =="NA") 
  
-total_run_df<-data %>%  
-  dplyr::select( year,population,region,total_run) %>%
+ total_run_df<-data %>%  
+  dplyr::select(year,population,region,total_run) %>%
   dplyr::mutate(total_run = as.numeric(total_run))
 
 catch_distributions <- data %>%
@@ -41,9 +43,10 @@ catch_distributions <- data %>%
                                "term_tot"
                                 )) %>%
   dplyr::mutate(percent_mort = as.numeric(percent_mort)/100) 
+ 
 
-# OP whole ======= 
-Oly_Pen_fish <- catch_distributions %>%
+# OC whole ======= 
+OC_fish <- catch_distributions %>%
   left_join(total_run_df) %>% 
   filter(!is.na(percent_mort )) %>% 
   dplyr::mutate(mortality_numbers = total_run *percent_mort,
@@ -52,8 +55,8 @@ Oly_Pen_fish <- catch_distributions %>%
                   str_detect(fishery_region, "^seak") ~ "Alaska",
                   str_detect(fishery_region, "^ak_term")  ~ "Alaska",
                   
-                  str_detect(fishery_region, "^US_term")  ~ "Washington Coast\nIn-River",
-                  str_detect(fishery_region, "^term_tot")  ~ "Washington Coast\nIn-River",
+                  str_detect(fishery_region, "^US_term")  ~ "Oregon Coast\nIn-River",
+                  str_detect(fishery_region, "^term_tot")  ~ "Oregon Coast\nIn-River",
 
                    # Canada
                   str_detect(fishery_region, "^can_term")  ~ "British Columbia",
@@ -64,39 +67,32 @@ Oly_Pen_fish <- catch_distributions %>%
                   # str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
                   
                   # Falcon (US)
-                  str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+                  str_detect(fishery_region, "^sfalc")    ~  "Oregon Coast",#"South of Falcon",
                   # str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
                   
-                  fishery_region == "nfalc_s" ~ "Washington Coast\nOcean",
-                  fishery_region == "nfalc_t" ~ "Washington Coast\nOcean",
-                  fishery_region == "US_is_tot" ~ "Washington Coast\nOcean",
+                  fishery_region == "nfalc_s" ~ "Washington",#"Washington Coast\nOcean",
+                  fishery_region == "nfalc_t" ~  "Washington",#"Washington Coast\nOcean",
+                  fishery_region == "US_is_tot" ~  "Washington",#"Washington Coast\nOcean",
 
                   # WA     
                   fishery_region == "PS_n" ~ "Puget Sound",
                   fishery_region == "PS_s" ~ "Puget Sound",
                   
-                  fishery_region == "wac_n" ~ "Washington Coast\nIn-River",
+                  fishery_region == "wac_n" ~  "Washington",#"Washington Coast\nIn-River",
                   # Other
                   TRUE                                    ~ "Check")) 
 
-uniqueOP<- data.frame(unique(Oly_Pen_fish[c("broad_region","fishery_region")]))
+uniqueOC<- data.frame(unique(OC_fish[c("broad_region","fishery_region")]))
 
-uniqueOP <- uniqueOP %>% 
+uniqueOC <- uniqueOC %>% 
   arrange(broad_region)
-# # 
-# test <- Oly_Pen_fish %>%
-#   filter(fishery_region %in% c("US_term_n","US_term_s","US_term_t", "term_tot")) %>%
-#   dplyr::select(year, population, fishery_region, total_run) %>%
-#   spread(fishery_region, total_run) %>%
-#   mutate(sum = US_term_n+ US_term_s+US_term_t)
-
-
-total_FMnumbers <- Oly_Pen_fish %>%
+ 
+total_FMnumbers <- OC_fish %>%
   group_by(year) %>%
   # get annual sum of all fishery mortality from OP for the year
   dplyr::summarise(total_FM_numbers = sum(mortality_numbers))  # want to ask, of all the fish caught that year, what was the relative proportions. Not related to overall runsize. 
 
-OP_plot_df<- Oly_Pen_fish %>% 
+OC_plot_df<- OC_fish %>% 
   dplyr::select(-c(total_run, percent_mort,fishery_region)) %>%
   ungroup() %>%
   group_by(year, broad_region) %>%
@@ -104,9 +100,10 @@ OP_plot_df<- Oly_Pen_fish %>%
   left_join(total_FMnumbers) %>%
   dplyr::mutate(percent_mort = mort_broad_region/total_FM_numbers,
                 broad_region = factor(broad_region, levels = c(
-                  "Washington Coast\nIn-River",
-                  "Washington Coast\nOcean",  
-                  "South of Falcon",
+                  "Oregon Coast",
+                  "Oregon Coast\nIn-River",
+                  "Washington", 
+                  # "South of Falcon",
                   "Puget Sound",
                   "British Columbia", 
                   "Alaska" 
@@ -119,7 +116,7 @@ OP_plot_df<- Oly_Pen_fish %>%
 
 # bar and pie ==== 
 ## 1. Prep pie chart data (last 5 years) ==========
-pie_df <- OP_plot_df %>%
+pie_df <- OC_plot_df %>%
   filter(year >2008) %>%
   group_by(broad_region) %>%
   summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
@@ -133,15 +130,17 @@ pie_df <- OP_plot_df %>%
 ## 2. Build pie chart ==========
 OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
   geom_col(color = "black", alpha = 0.9, width = 1) +
-  geom_text(aes(y = cum_pos, 
-                label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "") #label = label
-                ), 
-            size = 3, 
-            fontface = "bold",
-            color = "black") +
+  geom_label_repel(
+    aes(y = cum_pos, label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "")),
+    size = 3,
+    fontface = "bold",
+    nudge_x = 0.6,          # push labels outward
+    show.legend = FALSE,
+    segment.size = 0.3
+  ) +
   coord_polar(theta = "y") +
   scale_fill_manual(values = custom_pal) + 
-#  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  #  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
   labs(title = "Avg 2009-2020") +
   theme_void() +
   theme(
@@ -149,11 +148,32 @@ OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
     plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
     plot.background = element_blank()
   )
-
 OP_pie
 
+# ## 2. Build pie chart 
+# OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+#   geom_col(color = "black", alpha = 0.9, width = 1) +
+#   geom_text(aes(y = cum_pos, 
+#                 label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "") #label = label
+#                 ), 
+#             size = 3, 
+#             fontface = "bold",
+#             color = "black") +
+#   coord_polar(theta = "y") +
+#   scale_fill_manual(values = custom_pal) + 
+# #  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+#   labs(title = "Avg 2009-2020") +
+#   theme_void() +
+#   theme(
+#     legend.position = "none",
+#     plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+#     plot.background = element_blank()
+#   )
+# 
+# OP_pie
+
 ##  3. Main bar chart ==================
-OP_FM_stacked <- ggplot(OP_plot_df,
+OC_FM_stacked <- ggplot(OC_plot_df,
                             aes(x = year,
                                 y = percent_mort,
                                 fill = broad_region)) +
@@ -171,7 +191,7 @@ OP_FM_stacked <- ggplot(OP_plot_df,
                        # scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
                        labs(
                          fill = "Fishery Region",
-                         title = "Olympic Peninsula Chinook Salmon",
+                         title = "Oregon Coast Chinook Salmon",
                          subtitle = "Proportional Fishery Mortality by Region & Year"
                        ) +
                        theme_minimal() +
@@ -181,7 +201,7 @@ OP_FM_stacked <- ggplot(OP_plot_df,
                          legend.position = "none")
 
 ## 4. Legend =============
-legend <- get_legend(ggplot(OP_plot_df,
+legend <- get_legend(ggplot(OC_plot_df,
                         aes(x = year,
                             y = percent_mort,
                             fill = broad_region)) +
@@ -199,7 +219,7 @@ legend <- get_legend(ggplot(OP_plot_df,
   # scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
   labs(
     fill = "Fishery Region",
-    title = "Olympic Peninsula Chinook Salmon",
+    title = "Oregon Coast Chinook Salmon",
     subtitle = "Proportional Fishery Mortality by Region & Year"
   ) +
   theme_minimal() +
@@ -231,15 +251,16 @@ spacer <- ggplot() + theme_void()  # empty plot as top padding
 rightside_padded <- ggpubr::ggarrange(spacer, rightside, nrow = 2,
                                       heights = c(0.2, 1))  # adjust 0.3 to move down more
 
-final_plot <- ggpubr::ggarrange(OP_FM_stacked, rightside_padded,
+final_plot <- ggpubr::ggarrange(OC_FM_stacked, rightside_padded,
                                 ncol = 2,
                                 widths = c(3.3, 1))
 final_plot
+
 # --- 5. Save as JPEG ---
 ggsave(
-  filename = "output/plots/OP_FM_stacked.jpeg",
+  filename = "output/plots/OR_Coast_FM_stacked.jpeg",
   plot = final_plot,
-  width =5.5,
+  width =6,
   height =5,
   dpi = 300,
   units = "in"
