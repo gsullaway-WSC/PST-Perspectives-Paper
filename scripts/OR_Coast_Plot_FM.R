@@ -131,7 +131,7 @@ pie_df <- OC_plot_df %>%
 OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
   geom_col(color = "black", alpha = 0.9, width = 1) +
   geom_label_repel(
-    aes(y = cum_pos, label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "")),
+    aes(y = cum_pos, label = ifelse(avg_mort >= 0.02, paste0(round(avg_mort * 100, 1), "%"), "")),
     size = 3,
     fontface = "bold",
     nudge_x = 0.6,          # push labels outward
@@ -336,22 +336,148 @@ OC_plot_df<- OC_fish %>%
   dplyr::summarise(mort_broad_region = sum(mortality_numbers)) %>% 
   left_join(total_FMnumbers) %>%
   dplyr::mutate(percent_mort = mort_broad_region/total_FM_numbers,
-                broad_region = factor(broad_region, levels = c(
+                broad_region = factor(broad_region, 
+                                      levels = rev(c(
                   "Oregon Coast",
                   "Oregon Coast\nIn-River",
                   "Washington", 
-                  # "South of Falcon",
                   "Puget Sound",
                   "British Columbia", 
-                  "Alaska")),
+                  "Alaska"))), 
                 population = case_when(population == "Siletz_fa"  ~  "Siletz Fall",
                                        population == "Siuslaw_fa"  ~ "Siuslaw Fall",
                                        population == "Nehalem_fa"  ~ "Nehalem Fall",
                                        population == "south_umpqua"  ~ "South Umpqua",
                                        TRUE ~ population))
 
-   
-##  1. Main bar chart ==================
+### Nehalem ========= 
+pie_df <- OC_plot_df %>%
+  filter(year > 2008,
+         population %in% c("Nehalem Fall")) %>% #, "Siletz Fall", "Siuslaw Fall")) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  # group_by(population) %>%                          # <-- group by population ONLY
+  arrange(desc(broad_region)) %>%             # consistent ordering within each facet
+  mutate(
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,      # midpoint within each facet's stack
+    label = paste0(round(avg_mort * 100, 1), "%")
+  ) %>%
+  ungroup()
+
+
+Nehalem <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_label_repel(
+    aes(y = cum_pos, label = ifelse(avg_mort >= 0.02, paste0(round(avg_mort * 100, 1), "%"), "")),
+    size = 3,
+    fontface = "bold",
+    nudge_x = 0.6,          # push labels outward
+    show.legend = FALSE,
+    segment.size = 0.3
+  ) +
+  # facet_wrap(~population) + 
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = custom_pal) + 
+  #  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  labs(title = "Nehalem Fall, Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+Nehalem
+
+### Siletz ========= 
+pie_df <- OC_plot_df %>%
+  filter(year > 2008,
+         population %in% c("Siletz Fall")) %>% #, "Siletz Fall", "Siuslaw Fall")) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  # group_by(population) %>%                          # <-- group by population ONLY
+  arrange(desc(broad_region)) %>%             # consistent ordering within each facet
+  mutate(
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,      # midpoint within each facet's stack
+    label = paste0(round(avg_mort * 100, 1), "%")
+  ) %>%
+  ungroup()
+
+
+Siletz <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_label_repel(
+    aes(y = cum_pos, label = ifelse(avg_mort >= 0.02, paste0(round(avg_mort * 100, 1), "%"), "")),
+    size = 3,
+    fontface = "bold",
+    nudge_x = 0.6,          # push labels outward
+    show.legend = FALSE,
+    segment.size = 0.3
+  ) +
+  # facet_wrap(~population) + 
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = custom_pal) + 
+  #  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  labs(title = "Siletz Fall, Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+Siletz
+
+### Siuslaw ========= 
+pie_df <- OC_plot_df %>%
+  filter(year > 2008,
+         population %in% c("Siuslaw Fall")) %>% #, "Siletz Fall", "Siuslaw Fall")) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  # group_by(population) %>%                          # <-- group by population ONLY
+  arrange(desc(broad_region)) %>%             # consistent ordering within each facet
+  mutate(
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,      # midpoint within each facet's stack
+    label = paste0(round(avg_mort * 100, 1), "%")
+  ) %>%
+  ungroup()
+
+
+Siuslaw <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_label_repel(
+    aes(y = cum_pos, label = ifelse(avg_mort >= 0.02, paste0(round(avg_mort * 100, 1), "%"), "")),
+    size = 3,
+    fontface = "bold",
+    nudge_x = 0.6,          # push labels outward
+    show.legend = FALSE,
+    segment.size = 0.3
+  ) +
+  # facet_wrap(~population) + 
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = custom_pal) + 
+  #  scale_fill_viridis_d(drop = FALSE)+#, option = "plasma") +
+  labs(title = "Siuslaw Fall, Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+Siuslaw
+
+### Save individual Pies ========
+individ_pie <- ggpubr::ggarrange(Siuslaw,Siletz, Nehalem, nrow = 1)
+ggsave(
+  filename = "output/plots/Individ_Pie.jpeg",
+  plot = individ_pie,
+  width =6,
+  height =4,
+  dpi = 300,
+  units = "in"
+)
+##  3. Main bar chart ==================
 OC_FM_stacked_Facet <- ggplot(OC_plot_df %>% filter(year>2008 ),
                         aes(x = year,
                             y = percent_mort,
@@ -381,7 +507,7 @@ OC_FM_stacked_Facet <- ggplot(OC_plot_df %>% filter(year>2008 ),
     legend.position = "none")
 OC_FM_stacked_Facet
 
-## Select stocks bar chart ==================
+## 3B. Select stocks bar chart ==================
 OC_FM_stacked_Facet2 <- ggplot(OC_plot_df %>% filter(year>2008, 
                                                     population %in% c("Nehalem Fall", "Siletz Fall", "Siuslaw Fall")),
                               aes(x = year,
@@ -413,7 +539,7 @@ OC_FM_stacked_Facet2 <- ggplot(OC_plot_df %>% filter(year>2008,
     )
 OC_FM_stacked_Facet2
 
-# 5. Save as JPEG =======
+# 4. Save as JPEG =======
 ggsave(
   filename = "output/plots/OR_Coast_FM_FACET1_stacked.jpeg",
   plot = OC_FM_stacked_Facet,
