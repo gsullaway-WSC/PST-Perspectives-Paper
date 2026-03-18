@@ -10,7 +10,6 @@ custom_pal <- c(
   "Oregon Coast\nIn-River" =  "#0096C7",    
   "Oregon Coast"    =  "#8B7BB5",
   "Washington"           =  "#E8E8E8",   
-  "Puget Sound"               =   "grey",  
   "British Columbia"          =  "darkgrey",  
   "Alaska"                    =  "#888888")
 
@@ -75,10 +74,10 @@ OC_fish <- catch_distributions %>%
                   fishery_region == "US_is_tot" ~  "Washington",#"Washington Coast\nOcean",
 
                   # WA     
-                  fishery_region == "PS_n" ~ "Puget Sound",
-                  fishery_region == "PS_s" ~ "Puget Sound",
+                  fishery_region == "PS_n" ~ "Washington", # "Puget Sound",
+                  fishery_region == "PS_s" ~ "Washington", # "Puget Sound",
                   
-                  fishery_region == "wac_n" ~  "Washington",#"Washington Coast\nIn-River",
+                  fishery_region == "wac_n" ~  "Washington",#"Washington Coast\n In-River",
                   # Other
                   TRUE                                    ~ "Check")) 
 
@@ -104,7 +103,7 @@ OC_plot_df<- OC_fish %>%
                   "Oregon Coast\nIn-River",
                   "Washington", 
                   # "South of Falcon",
-                  "Puget Sound",
+                  # "Puget Sound",
                   "British Columbia", 
                   "Alaska" 
                   # "British Columbia", 
@@ -312,8 +311,8 @@ OC_fish <- catch_distributions %>%
                   fishery_region == "US_is_tot" ~  "Washington",#"Washington Coast\nOcean",
                   
                   # WA     
-                  fishery_region == "PS_n" ~ "Puget Sound",
-                  fishery_region == "PS_s" ~ "Puget Sound",
+                  fishery_region == "PS_n" ~ "Washington", #"Puget Sound",
+                  fishery_region == "PS_s" ~ "Washington", #"Puget Sound",
                   
                   fishery_region == "wac_n" ~  "Washington",#"Washington Coast\nIn-River",
                   # Other
@@ -340,8 +339,7 @@ OC_plot_df<- OC_fish %>%
                                       levels = rev(c(
                   "Oregon Coast",
                   "Oregon Coast\nIn-River",
-                  "Washington", 
-                  "Puget Sound",
+                  "Washington",  
                   "British Columbia", 
                   "Alaska"))), 
                 population = case_when(population == "Siletz_fa"  ~  "Siletz Fall",

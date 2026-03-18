@@ -6,3 +6,5 @@ data
 *.RDS
 .RDataTmp
 .RDataTmp
+/HydroRIVERS_v10_na_shp
+/HydroRIVERS_v10_ar_shp
