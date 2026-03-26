@@ -4,29 +4,19 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(rnaturalearthhires)
 library(tidyverse)
-library(sf) 
+library(sf)
+library(ggplot2)
+library(dplyr)
 
-# Read rivers ===== 
+# Read rivers (NA + Arctic)
 hydro <- st_read("HydroRIVERS_v10_na_shp/HydroRIVERS_v10_na_shp/HydroRIVERS_v10_na.shp")
 hydro_arc <- st_read("HydroRIVERS_v10_ar_shp/HydroRIVERS_v10_ar_shp/HydroRIVERS_v10_ar.shp")
 
 hydro_all <- bind_rows(hydro, hydro_arc)
 
- # Lat/long bbox for initial crop (still in 4326)
-bbox <- st_bbox(c(xmin = -170, xmax = -115, ymin = 32, ymax = 67),
+# Lat/long bbox for initial crop (still in 4326)
+bbox <- st_bbox(c(xmin = -170, xmax = -110, ymin = 32, ymax = 68),
                 crs = st_crs(4326))
-
-# Crop and intersect in 4326 first
-hydro_crop <- st_crop(hydro_all, bbox)
-hydro_filtered <- hydro_crop %>%
-  filter(UPLAND_SKM >= 500) %>%
-  st_intersection(target_union)
-
-# Load base map data ==== 
-world <- ne_countries(scale = "medium", returnclass = "sf")
-
-states_usa <- ne_states(country = "united states of america", returnclass = "sf")
-states_can <- ne_states(country = "canada", returnclass = "sf")
 
 # Filter by upstream area for intermediate detail
 target_states <- bind_rows(
@@ -35,23 +25,22 @@ target_states <- bind_rows(
 )
 
 target_union <- st_union(target_states)
- 
-# Reproject everything to North America Albers Equal Area (ESRI:102008) =====
+
+# Crop and intersect in 4326 first
+hydro_crop <- st_crop(hydro_all, bbox)
+hydro_filtered <- hydro_crop %>%
+  filter(UPLAND_SKM >= 500) %>%
+  st_intersection(target_union)
+
+# ---- Reproject everything to North America Albers Equal Area (ESRI:102008) ----
 crs_aea <- st_crs("ESRI:102008")  # North America Albers Equal Area
  
+
 world_aea         <- st_transform(world,        crs_aea)
 states_usa_aea    <- st_transform(states_usa,   crs_aea)
 states_can_aea    <- st_transform(states_can,   crs_aea)
 hydro_filtered_aea <- st_transform(hydro_filtered, crs_aea)
  
-# Create a bbox in 4326, then transform to AEA to get projected limits
-bbox_4326 <- st_bbox(c(xmin = -170, xmax = -115, ymin = 32, ymax = 67),
-                     crs = st_crs(4326)) %>%
-  st_as_sfc() %>%
-  st_transform(crs_aea) %>%
-  st_bbox()
- 
-
 # Build map in equal-area projection
 map <- ggplot() +
   
@@ -73,7 +62,7 @@ map <- ggplot() +
   scale_linewidth_continuous(range = c(0.05, 0.7), guide = "none") +
   
   labs(
-    title = "Pacific Salmon Management Bodies: Alaska to California"
+    title = "Pacific Salmon Jurisdictions: Southern Alaska to California"
   ) +
   
   theme_minimal(base_size = 12) +
@@ -85,15 +74,12 @@ map <- ggplot() +
     plot.subtitle    = element_text(size = 10, hjust = 0.5, color = "#555"),
     plot.caption     = element_text(size = 8, color = "#888"),
     axis.text        = element_text(size = 8, color = "#555")
-  ) + 
+  ) +
+  
   coord_sf(
     crs = crs_aea,
-    xlim = c(bbox_4326["xmin"], bbox_4326["xmax"]),
-    ylim = c(bbox_4326["ymin"], bbox_4326["ymax"]),
+    xlim = c(-170, -113),# ylim = c(32, 68),
     expand = FALSE
-  ) 
+  )
 
-
-# 5. SAVE ===============
 map
-ggsave("west_coast_rivers_map.png", width = 6, height = 10, bg = "transparent") 

@@ -152,6 +152,74 @@ OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
 
 OP_pie
 
+unique(pie_df2$broad_region)
+
+## 2.5 OP Pie Stand Alone ==========
+pie_df2 <- OP_plot_df %>%
+  filter(year > 2008) %>%
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%
+  dplyr::mutate(
+    custom_region = case_when(broad_region == "Alaska" ~ "AK",
+                              broad_region == "British Columbia" ~ "BC",
+                              broad_region == "Puget Sound" ~ "PS",
+                              broad_region == "Washington Coast\nOcean" ~ "WA Ocean",
+                              broad_region == "Washington Coast\nIn-River" ~ "WA In-River",
+                              TRUE ~ NA), 
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,
+    label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
+  ) 
+
+custom_pal <- c(
+  "Washington Coast\nIn-River" = "#2D6E7E",    
+  "Washington Coast\nOcean"    = "#7FA8B8",
+  "South of Falcon"            = "#E8E8E8",   
+  "Puget Sound"                = "grey",  
+  "British Columbia"           = "#A8B8A0",  
+  "Alaska"                     = "#C8D4D8"
+)
+ 
+OP_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  
+  
+  # Labels inside for large slices
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort >= 0.05, paste0(label), "")),
+            size = 4, fontface = "bold", color = "black") + 
+  # Labels outside for small slices — nudge x past 1 to push outside pie
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, paste0(label), "")),
+            x = 1.63,   # >1 pushes outside the pie (pie lives at x = 1)
+            size = 2.6, fontface = "bold", color = "black") + 
+  coord_polar(theta = "y", clip = "off") +   
+  scale_fill_manual(values = custom_pal, name = "Fishery Region") +  
+  theme_void() +
+  theme(
+    legend.position   = "top",
+    legend.title      = element_text(size = 10, face = "bold"),
+    legend.text       = element_text(size = 9),
+    legend.margin     = margin(t = 10, b = -10, unit = "mm"),  # positive t pushes down, negative b pulls pie up
+    # legend.key.size   = unit(0.4, "cm"),   # smaller legend keys
+    legend.spacing.x  = unit(0.2, "cm"),   # tighten horizontal spacing
+    plot.margin       = margin(0, 5, 0, 5, "mm"),  # reduce outer margins
+    plot.background   = element_blank()
+  )
+
+OP_pie2
+
+ggsave(
+  filename = "output/plots/OP_FM_PieOnly.jpeg",
+  plot = OP_pie2,
+  width =6,
+  height =5.5,
+  dpi = 300,
+  units = "in"
+)
+
+
 ##  3. Main bar chart ==================
 OP_FM_stacked <- ggplot(OP_plot_df,
                             aes(x = year,

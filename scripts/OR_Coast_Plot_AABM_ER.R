@@ -25,7 +25,9 @@ esc_goals <- read_csv("data/Escapement_goals_data_all_2026-02-19.csv") %>%
                                          population == "Siuslaw Fall" ~ 3987),
                 desired_esc = case_when(population == "Nehalem Fall" ~ 13302 ,
                                        population == "Siletz Fall" ~ 17469,
-                                       population == "Siuslaw Fall" ~ 16274))
+                                       population == "Siuslaw Fall" ~ 16274),
+                esc_goal = Values) %>% 
+  dplyr::select(-Values)
 
 write_csv(esc_goals, "data/OR_Esc_Goals.csv")
 
@@ -58,7 +60,7 @@ esc_goals <- bind_rows(esc_goals, new_pops)
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx")
  
 OC_total_run_df <- data %>%  
-  dplyr::select(year, population, region, total_run, er,esc_tot,aabm_tot) %>% 
+  dplyr::select(year, population, region, total_run, er, esc_tot,aabm_tot) %>% 
   filter(region %in% c("ORC", "OC")) %>% 
   dplyr::mutate(total_run = as.numeric(total_run),
                 population = case_when(population == "Siuslaw_fa" ~ "Siuslaw Fall",
@@ -71,7 +73,7 @@ OC_total_run_df <- data %>%
 # Join
 joined_df <- OC_total_run_df %>%
   left_join(esc_goals, by = c("year", "population")) %>%
-  rename(esc_goal = "critical_esc") %>%
+  # rename(esc_goal = "critical_esc") %>%
   dplyr::mutate(esc_tot = as.numeric(esc_tot),
                er = as.numeric(er), 
                aabm_tot = as.numeric(aabm_tot), 
@@ -90,7 +92,7 @@ joined_df <- OC_total_run_df %>%
     vulnerable_er = case_when(under_goal == "Under Esc. Goal" & above_avg_er == TRUE ~ TRUE,
                            TRUE ~ FALSE)) %>%
   ungroup() %>%
-  filter(!year<2000)
+  filter(!year<2000, !year ==2023)
 
 # All Stocks Plot =========
 ## Plot with Esc Goals & AABM ======
@@ -201,6 +203,129 @@ ggsave("output/plots/esc_goal_plotER.jpeg",
 
 
  
+
+
+## TEST Plot with Esc Goals & ER ======
+# er_means <- joined_df %>% 
+#   group_by(population) %>%
+#   summarise(mean = mean(er)) 
+
+new_ER_Plot<-ggplot(joined_df %>% 
+         filter(population %in% c("Nehalem Fall", "Siletz Fall", "Siuslaw Fall")) %>%  
+         dplyr::mutate(er = as.numeric(er)), aes(x = year, y = esc_tot)) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # Escapement bars
+  geom_col(alpha = 0.85) +
+  
+  # Escapement goal dashed line
+  geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+  
+  # Red points for vulnerable years
+  geom_point(data = joined_df %>% filter(vulnerable_er == TRUE),
+             aes(x = year, y = esc_tot),
+             color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+ 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(
+    title    = "Oregon Coast Chinook Escapement vs. Exploitation Rates",
+    subtitle = "Red shading = Exploitation Rates\nDashed line = Escapement Goal\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+ 
+
+ggsave("output/plots/OR_Coast_esc_goal_ER_plot.jpeg",
+       plot = new_ER_Plot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+### Test Trend Line ====
+new_ER_Plot2<-ggplot(joined_df %>% 
+                      filter(population %in% c("Nehalem Fall", "Siletz Fall", "Siuslaw Fall")) %>%  
+                      dplyr::mutate(er = as.numeric(er)), aes(x = year, y = esc_tot)) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # Escapement bars
+  geom_col(alpha = 0.85) +
+  
+  # Escapement goal dashed line
+  geom_path(aes(y = esc_goal), color = "black") + #, linetype = 2) +
+  
+  # Red points for vulnerable years
+  geom_point(data = joined_df %>% filter(vulnerable_er == TRUE),
+             aes(x = year, y = esc_tot),
+             color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  
+  geom_smooth(aes(y = esc_tot), method = "lm",
+              color = "black", linetype = 2, alpha = 0.5, linewidth = 0.8, se = FALSE) +
+  
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(
+    title    = "Oregon Coast Chinook Escapement vs. Exploitation Rates",
+    subtitle = "Red shading = Exploitation Rates\nSolid line = Escapement Goal, Dashed Line = Escapement Trend \n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+new_ER_Plot2
+
+ggsave("output/plots/OR_Coast_esc_goal_ER_plot_trendline.jpeg",
+       plot = new_ER_Plot2,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+
+
+
 # Select stocks plot ====
 select_joined_df <- joined_df %>%
         filter(StockName %in% 
