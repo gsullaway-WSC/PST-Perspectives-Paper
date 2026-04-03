@@ -1,37 +1,17 @@
 library(tidyverse)
 library(here)
  
-# notes:
- 
-# no age 5 recoveries for QUHO after 2015ish?? big data gap, check this!! but see plot 11 they are pretty sparse throughotu the timeseries, so just not many fish making it to age 5/getting recovered/caught in fisheries? 
+# notes:  
 
-# how to group these? currently doing the basins, which yields 2 basins. Otherwise question is do you group by relase location, hatchery or popualtion?
-# but then populations are like queets x quinalt, because of blending brood stock.... 
-# so i think basin by run type is probably best. 
-# not much info on sex, good amount of missing values are we ok not knowing this?? 
-# data is looking pretty strong for Falls, less info for springs, more spotty smaller smaple sizes. 
-
-# Filtering notes:
-# remove juvenile sampling and foreign high seas 
-# Spring data ends right before 2000, but then summer data starts up, is it just a naming convention? I think so. 
-# currently changing summer to spring name but will revisi. 
-# about 500 age 0's caught. not very consistent through time so have removed them 
-# currently starting data set in 1990 because the 80s are really jumpy in data quality and quantity 
-
-# modeling notes 
-# likely will combine Spring and Fall... what does james think about this? versus just looking at fall (probably will need to do both and compare.... )
-
-# Grouping notes:
-# Currently grouping based on RMIS basin (QUHO - Quillayute, Hoh & QEQU - Queets, Quinalt)
-# other groupings can maybe get you to a river scale, but unclear because release location, population location, and hatchery location all vary.
-# one individual could come from same hatchery, released in different places so how specific do we want or need to get.
-
-# Load releases ========= 
-op_release <- read_csv("data/RMIS_releases/OP_Releases.csv") %>%
+ # Load releases ========= 
+ps_release <- read_csv("data/RMIS_releases/PS_RMIS_releases.csv") %>%
   dplyr::rename(tag_code = "tag_code_or_release_id") %>% 
-  filter(species == 1,  
-         release_location_state == "WA",
-         release_location_rmis_region == "NWC") %>%
+  filter(species == 1,
+         !is.na(release_location_rmis_region)
+         # release_location_state == "OR"#,
+          # !release_location_rmis_region %in% c("SNAK","ORGN")
+         ) %>%
+         # release_location_rmis_region == "NWC") %>%
   dplyr::select(tag_code, run, brood_year, first_release_date, 
                 release_location_code, hatchery_location_code,
                 release_stage, avg_weight, avg_length, 
@@ -43,7 +23,6 @@ op_release <- read_csv("data/RMIS_releases/OP_Releases.csv") %>%
  
 # Function to process a single recovery file
 process_recovery_file <- function(file_path, release_data) {
-  
   # Read and tidy the recovery file
   recovery_tidy <- read_csv(file_path, show_col_types = FALSE) %>% 
     dplyr::select(recovery_id,
@@ -63,14 +42,14 @@ process_recovery_file <- function(file_path, release_data) {
                   catch_sample_id,
                   sampled_maturity,
                   sampled_run,
-                  sampled_sex,
+                  # sampled_sex,
                   number_cwt_estimated) %>%
     dplyr::mutate(tag_code = as.character(tag_code))
+  # return(recovery_tidy)
   
-  # Join with release data and filter
-  recovery_joined <- left_join(recovery_tidy, release_data, by = "tag_code") %>% 
-    filter(!is.na(stock_location_name)) %>%
-    # separate(recovery_date, sep = -4, into = c("recovery_year", "del"), remove = FALSE) %>%
+  # # Join with release data and filter
+  recovery_joined <- left_join(recovery_tidy, release_data, by = "tag_code") %>%
+    # filter(!is.na(stock_location_name)) %>%
     separate(first_release_date, sep = -4, into = c("release_year", "del2"), remove = FALSE) %>%
     select(-c(del2)) %>%
     dplyr::mutate(
@@ -80,7 +59,7 @@ process_recovery_file <- function(file_path, release_data) {
         run == 2 ~ "Summer",
         run == 3 ~ "Fall"
       )
-    ) %>% 
+    ) %>%
         filter(!ocean.age < 0,
                !ocean.age > 5
                )
@@ -94,19 +73,19 @@ folder_path <- "data/RMIS_recoveries"
 file_list <- list.files(path = folder_path, pattern = "\\.csv$", full.names = TRUE)
 # recovery_test <- read_csv("data/RMIS_recoveries/OP_Chinook/")
 ## Process all files and combine ===== 
-all_recoveries <- map_dfr(file_list, process_recovery_file, release_data = op_release) 
+all_recoveries <- map_dfr(file_list, process_recovery_file, release_data = ps_release) 
 
 # filtering out QAQC ========
 recoveries <- all_recoveries %>%
   # remove juvenile sampling and foreign high seas 
   filter(!fishery %in% c(88,95, 83,74,75,70,71,72,73,79),
-         !ocean.age ==0
-         # !run_year < 1990
-         #!run =="Summer"
-         ) %>%
-  dplyr::mutate(run = case_when(run == "Summer" & release_location_rmis_basin == "QUHO" ~ "Spring",
-                TRUE ~ run)) %>%
-  filter(!run == "Summer")
+         !ocean.age ==0 ) #%>%
+  # dplyr::mutate(run = case_when(run == "Summer" & release_location_rmis_basin == "QUHO" ~ "Spring",
+  #               TRUE ~ run)) %>%
+  #filter(!run == "Summer")
+unique(recoveries$release_location_rmis_region)
+
+t<- unique(recoveries[c("release_location_rmis_region", "release_location_rmis_basin")])
 
 # Create summary table =====
 summary_df1 <- recoveries %>%
@@ -143,9 +122,9 @@ summary_df2 <- recoveries %>%
                                 TRUE ~"no"))
 
 ## save tables ====
-write_csv(summary_df1,"output/summary_df1_longer.csv")
+write_csv(summary_df1,"output/PSsummary_df1_longer.csv")
 
-write_csv(summary_df2,"output/summary_df2.csv")
+write_csv(summary_df2,"output/PSsummary_df2.csv")
 
  # Create a hatchery filtered DF and save =====
 filter_hatcheries <- summary_df2 %>%
@@ -154,7 +133,7 @@ filter_hatcheries <- summary_df2 %>%
 hatchery <- recoveries %>%
   filter(hatchery_location_name %in% c(filter_hatcheries$hatchery_location_name))
 
-write_csv(hatchery, "data/OP_Chinook_RMIS_tidy.csv")
+write_csv(hatchery, "data/PS_Chinook_RMIS_tidy.csv")
 
 
 # Match fishery and gear names into df ========
@@ -182,7 +161,7 @@ all_ages <- ggplot(recoveries, aes(x = brood_year)) +
   geom_hline(yintercept = 10) 
 
 all_ages
-ggsave("output/plots/age_record_count_allages.jpeg",width = 8, height =6)
+ggsave("output/plots/PS_age_record_count_allages.jpeg",width = 8, height =6)
 
 age_5_count <- ggplot(recoveries %>% filter(ocean.age==5), aes(x = brood_year)) +
   geom_bar(fill = "steelblue") +
@@ -196,7 +175,7 @@ age_5_count <- ggplot(recoveries %>% filter(ocean.age==5), aes(x = brood_year)) 
   facet_wrap(~ocean.age, scales = "free_y")
 
 age_5_count
-ggsave("output/plots/age_record_count_age5.jpeg",width = 8, height =6)
+ggsave("output/plots/PS_age_record_count_age5.jpeg",width = 8, height =6)
 
 # 2. Count by release location basin =====
 ggplot(recoveries, aes(y = reorder(release_location_rmis_basin, 
@@ -260,7 +239,7 @@ age_dist <- ggplot(recoveries, aes(x = ocean.age)) +
   theme_minimal()
 
 age_dist
-ggsave("output/plots/age_distribution.jpeg",width = 8, height =6)
+ggsave("output/plots/PS_age_distribution.jpeg",width = 8, height =6)
 
 # 8. Missing data visualization ==== 
 recoveries %>%
@@ -305,7 +284,7 @@ all_recoveries_summary <- recoveries %>%
     .groups = "drop"
   )
 
-ggplot(all_recoveries_summary, 
+ggplot(all_recoveries_summary %>% filter(!n==1), 
        aes(x = brood_year, y = mean_length, color = factor(ocean.age))) +
   geom_path() +
   scale_color_viridis_d() + 
@@ -327,7 +306,6 @@ ggplot(recoveries %>% filter(!is.na(length), !is.na(ocean.age)),
        y = "Length",
        fill = "Basin") +
   theme_minimal()
-
 
 # 8. Sample size visualization
 sample_sizes <- recoveries %>%
@@ -393,7 +371,7 @@ scaled_length <- ggplot(scaled_trends,
 
 
 scaled_length
-ggsave("output/plots/scaled_length.jpeg",width = 8, height =6)
+ggsave("output/plots/PSscaled_length.jpeg",width = 8, height =6)
 
 # 13. Heatmap of scaled anomalies ===========
 ggplot(scaled_trends, 
@@ -469,7 +447,6 @@ ggplot(diff_stats,
     fill = "Direction of change"
   ) +
   theme_minimal()
-
 
 ## Plots comparing hatchery ======= 
 # 1. Count of records by year ===== 

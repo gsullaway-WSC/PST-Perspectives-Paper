@@ -74,6 +74,70 @@ joined_df <- OP_total_run_df %>%
                            TRUE ~ FALSE)) %>%
   ungroup()
 
+# Full ER in background plot ======
+new_plot_df <- joined_df %>% 
+  filter(!year ==2023,
+         StockName %in% c("Hoh Spr Sum", "Queets SprSum", "Quillayute Fall")) %>%
+  dplyr::mutate(er = as.numeric(er),
+                population = case_when(StockName =="Hoh Spr Sum" ~ "Hoh S.",
+                                       StockName =="Queets SprSum" ~ "Queets S.", 
+                                       StockName =="Quillayute Fall" ~ "Quillayute F.",
+                                      TRUE ~ StockName))
+
+new_ER_Plot<-ggplot( new_plot_df, aes(x = year, y = esc_tot)) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # Escapement bars
+  geom_col(alpha = 0.85) +
+  
+  # Escapement goal dashed line
+  geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+  
+  # Red points for vulnerable years
+  geom_point(data = new_plot_df %>% filter(vulnerable_er == TRUE),
+             aes(x = year, y = esc_tot),
+             color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ population, scales = "free_y", nrow =1) +
+  
+  labs(
+    title    = "Olympic Peninsula Chinook Escapement vs. Exploitation Rates",
+    subtitle = "Red shading = Exploitation Rates\nDashed line = Escapement Goal\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+
+new_ER_Plot
+
+ggsave("output/plots/OP_esc_goal_ER_plot.jpeg",
+       plot = new_ER_Plot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
 # All Stocks Plot =========
 ## Plot with Esc Goals & AABM ======
 esc_goal_plot <- ggplot(joined_df, aes(x = year, y = esc_tot)) +

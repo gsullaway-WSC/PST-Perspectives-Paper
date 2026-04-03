@@ -1,6 +1,51 @@
 # functions to calculate summary statistics from LME_OP_CHinook.R script output. 
-
-results <- readRDS("output/sizeatage_LME_results.RDS")
+library(tidyverse)
+extract_year_effects <- function(model_obj) {
+  
+  fixed_eff <- if(inherits(model_obj$model, "lme")) {
+    fixef(model_obj$model)
+  } else {
+    coef(model_obj$model)
+  }
+  
+  se <- sqrt(diag(vcov(model_obj$model)))
+  intercept <- fixed_eff["(Intercept)"]
+  
+  year_coefs <- fixed_eff[grep("^year", names(fixed_eff))]
+  year_se <- se[grep("^year", names(se))]
+  
+  # Get reference year (first year in data)
+  ref_year <- min(as.numeric(as.character(model_obj$data$year)))
+  
+  year_effects_df <- data.frame(
+    year = as.numeric(gsub("year", "", names(year_coefs))),
+    effect = as.numeric(year_coefs),
+    se = as.numeric(year_se),
+    ocean_age = model_obj$ocean_age
+  )
+  
+  # Add reference year with effect = 0
+  ref_row <- data.frame(
+    year = ref_year,
+    effect = 0,
+    se = 0,
+    ocean_age = model_obj$ocean_age
+  )
+  
+  year_effects_df <- bind_rows(ref_row, year_effects_df) %>%
+    arrange(year)
+  
+  # Calculate CIs
+  year_effects_df$lower <- year_effects_df$effect - 1.96 * year_effects_df$se
+  year_effects_df$upper <- year_effects_df$effect + 1.96 * year_effects_df$se
+  
+  # Predicted lengths
+  year_effects_df$predicted_length <- year_effects_df$effect + intercept
+  year_effects_df$predicted_lower <- year_effects_df$lower + intercept
+  year_effects_df$predicted_upper <- year_effects_df$upper + intercept
+  
+  return(year_effects_df)
+}
 
 calculate_size_changes <- function(results_list, reference_year = 1990) {
   
@@ -55,6 +100,9 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
       first_5_catch_years = paste(first_5_catch_years, collapse = ", "),
       last_5_catch_years = paste(last_5_catch_years, collapse = ", "),
       total_change_mm = round(total_change, 1),
+      start_length = as.matrix(year_effects %>% filter(year == reference_year) %>% dplyr::select(predicted_length)), 
+      end_length = year_effects[nrow(year_effects),7],
+      first_5_avg = first_5_avg, 
       change_per_decade_mm = round(change_per_decade, 1),
       reference_catch_year = reference_year,
       change_from_reference_mm = round(change_from_ref, 1),
@@ -117,7 +165,29 @@ calculate_size_changes <- function(results_list, reference_year = 1990) {
   return(summary_df)
 }
 
+# OR Chinook =====
+results <- readRDS("output/OR_Coast_sizeatage_LME_results.RDS")
+
+size_changes <- calculate_size_changes(results_list=results, reference_year = 1990)
+
+# Save to CSV
+write.csv(size_changes, "output/OC_size_change_summary.csv", row.names = FALSE)
+
+# Optionally, create a separate summary file with the overall averages
+overall_summary <- data.frame(
+  metric = c("Average total change (mm)", 
+             "Average change per decade (mm)", 
+             "Average change from reference catch year (mm)"),
+  value = c(attr(size_changes, "avg_total_change"),
+            attr(size_changes, "avg_change_per_decade"),
+            attr(size_changes, "avg_change_from_reference"))
+)
+write.csv(overall_summary, "output/OR_Chinook_overall_average_summary.csv", row.names = FALSE)
+
+# OP CHinook =====
 # Usage:
+results <- readRDS("output/sizeatage_LME_results.RDS")
+
 size_changes <- calculate_size_changes(results, reference_year = 1990)
 
 # Save to CSV

@@ -80,7 +80,7 @@ process_recovery_file <- function(file_path, release_data) {
 
 
 # Load recovery files ===== 
-folder_path <- "data/RMIS_recoveries/OP_Chinook"
+folder_path <- "data/RMIS_recoveries"
 file_list <- list.files(path = folder_path, pattern = "\\.csv$", full.names = TRUE)
 # recovery_test <- read_csv("data/RMIS_recoveries/OP_Chinook/")
 ## Process all files and combine ===== 
