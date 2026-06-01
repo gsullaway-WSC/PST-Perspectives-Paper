@@ -487,40 +487,82 @@ run_full_analysis <- function(input_data, ocean_ages) {
     #formula = formula(final_base_model)   
   ))
 }
-# 8. COMPARE MODELS ACROSS AGES ============================================================================
- 
+
+# 8. COMPARE MODELS ================
+
 compare_age_models <- function(results) {
-  
-  cat("\n========================================\n")
-  cat("Summary of models across ocean ages\n")
-  cat("========================================\n")
-  
+
   comparison_df <- data.frame(
-    ocean_age = integer(),
-    n_obs = integer(),
-    AIC = numeric(),
-    BIC = numeric(),
-    logLik = numeric(),
-    r_squared = numeric()
+    ocean_age      = integer(),
+    n_obs          = integer(),
+    AIC            = numeric(),
+    BIC            = numeric(),
+    logLik         = numeric(),
+    r2_marginal    = numeric(),
+    r2_conditional = numeric(),
+    predictors     = character()
   )
+
+for(age_name in names(results$models)) {
+    model_obj <- results$models[[age_name]]
+    mod <- model_obj$model
+
+    # R-squared
+    r2_vals        <-  performance::r2(mod) # MuMIn::r.squaredGLMM(mod)
+ 
+    # Fixed effect predictor names
+    fixed_terms <- labels(terms(mod))
+    predictors  <- paste(fixed_terms, collapse = " + ")
+    
+    comparison_df <- rbind(comparison_df, data.frame(
+      ocean_age      = model_obj$ocean_age,
+      n_obs          = model_obj$n_obs,
+      AIC            = round(AIC(mod), 2),
+      BIC            = round(BIC(mod), 2),
+      logLik         = round(as.numeric(logLik(mod)), 2),
+      r2_vals    = r2_vals, 
+      predictors     = predictors,
+      stringsAsFactors = FALSE
+    ))
+  }
+   
+  all_coef_tables <- data.frame()
+ 
   
   for(age_name in names(results$models)) {
     model_obj <- results$models[[age_name]]
-    
-    comparison_df <- rbind(comparison_df, data.frame(
-      ocean_age = model_obj$ocean_age,
-      n_obs = model_obj$n_obs,
-      AIC = AIC(model_obj$model),
-      BIC = BIC(model_obj$model),
-      logLik = as.numeric(logLik(model_obj$model)),
-      r_squared = NA  # Calculate if needed
-    ))
+    mod <- model_obj$model
+ 
+    # Use lmerTest-style p-values if available, otherwise fall back to car::Anova
+    coef_table <- tryCatch({
+      # Works if model was fit with lmerTest or is a plain lm
+      ct <- as.data.frame(coef(summary(mod)))
+      ct$term <- rownames(ct)
+      ct <- ct[ct$term != "(Intercept)", ]  # drop intercept
+      
+      # Standardize p-value column name (lmerTest = "Pr(>|t|)", lm = "Pr(>|t|)")
+      pval_col <- names(ct)#grep("Pr\\(", names(ct), value = TRUE)[1]
+ 
+   data.frame(
+        age = age_name, 
+        term      = ct$term,
+        estimate  = round(ct$Value, 4),
+        std_error = round(ct$Std.Error, 4),
+        p_value   = round(ct$`p-value`, 4),
+        sig       = symnum(ct$`p-value`, 
+                           cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1),
+                           symbols   = c("***", "**", "*", ".", " "))
+      )
+    })
+    # Append to master table
+
+      all_coef_tables <- rbind(all_coef_tables, coef_table)
+
   }
   
-  print(comparison_df)
-  return(comparison_df)
+  
+  return(list(comparison_df,all_coef_tables))
 }
-
 
 # CALL and RUN ===========
 ## load data ====
@@ -534,8 +576,15 @@ df <- read_csv("data/OP_Chinook_RMIS_tidy.csv") %>%
 # once they work individually, run them all in one so its easier for plotting etc. 
  results <- run_full_analysis(input_data = df, ocean_ages = 2:4)
  
- write_rds(results, "output/sizeatage_LME_results.RDS")
+ write_rds(results, "output/OP_sizeatage_LME_results.RDS")
   
  ## compare for all ages ===== 
-  comparison <- compare_age_models(results)
+ results <- readRDS("output/OP_sizeatage_LME_results.RDS")
   
+ comparison <- compare_age_models(results)
+  
+ comparison
+ 
+ comparison[[2]]
+ 
+ 

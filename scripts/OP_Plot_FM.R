@@ -3,6 +3,11 @@ library(here)
 library(readxl)
 library(viridis)
 library(cowplot) 
+install.packages("showtext")
+library(showtext)
+font_add_google("DM Sans", "dm_sans")
+showtext_auto()
+ 
 
 # custom colors =====
 custom_pal <- c(
@@ -33,13 +38,15 @@ total_run_df<-data %>%
 catch_distributions <- data %>%
   dplyr::select(c(1:39)) %>%
   gather(4:ncol(.), key = "fishery_region", value = "percent_mort") %>%
-  filter(!fishery_region %in% c(#"US_is_tot",
-                                "stray", 
-                               "aabm_tot", 
-                                "esc_pct", 
-                                "er",  
-                               "term_tot"
-                                )) %>%
+  filter(!fishery_region %in% c(
+    "stray", 
+    "aabm_tot", 
+    "nbc_is_tot",
+    "sbc_is_tot",
+    "US_is_tot", 
+    "esc_pct", 
+    "er",  
+    "term_tot")) %>%
   dplyr::mutate(percent_mort = as.numeric(percent_mort)/100) 
 
 # OP whole ======= 
@@ -117,8 +124,8 @@ OP_plot_df<- Oly_Pen_fish %>%
                   # "Washington Coast In-River"
                 )))
 
-# bar and pie ==== 
-## 1. Prep pie chart data (last 5 years) ==========
+## bar and pie ==== 
+### 1. Prep pie chart data (last 5 years) ==========
 pie_df <- OP_plot_df %>%
   filter(year >2008) %>%
   group_by(broad_region) %>%
@@ -130,7 +137,7 @@ pie_df <- OP_plot_df %>%
     label = paste0(round(avg_mort * 100, 1), "%")  # format as percent
   )
 
-## 2. Build pie chart ==========
+### 2. Build pie chart ==========
 OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
   geom_col(color = "black", alpha = 0.9, width = 1) +
   geom_text(aes(y = cum_pos, 
@@ -151,8 +158,91 @@ OP_pie <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
   )
 
 OP_pie
+ 
+## 1.5 Individual fishery regions ==========
+Oly_Pen_fish_individ <- catch_distributions %>%
+  left_join(total_run_df) %>% 
+  filter(!is.na(percent_mort )) %>% 
+  dplyr::mutate(mortality_numbers = total_run *percent_mort,
+                              broad_region = case_when(
+                                # Alaska
+                                str_detect(fishery_region, "^seak") ~ "Alaska",
+                                str_detect(fishery_region, "^ak_term")  ~ "Alaska",
+                                
+                                str_detect(fishery_region, "^US_term")  ~ "Washington Coast\nIn-River",
+                                str_detect(fishery_region, "^term_tot")  ~ "Washington Coast\nIn-River",
+                                
+                                # Canada
+                                str_detect(fishery_region, "^can_term")  ~ "British Columbia",
+                                str_detect(fishery_region, "^wcvi")     ~ "British Columbia",#"West Coast Vancouver Island",
+                                str_detect(fishery_region, "^nbc")      ~ "British Columbia", #"North Coast BC",
+                                str_detect(fishery_region, "^sbc")      ~ "British Columbia",
+                                
+                                # str_detect(fishery_region, "^can_term") ~ "Canada Terminal",
+                                
+                                # Falcon (US)
+                                str_detect(fishery_region, "^sfalc")    ~ "South of Falcon",
+                                # str_detect(fishery_region, "^nfalc")    ~ "North of Falcon",
+                                
+                                fishery_region == "nfalc_s" ~ "Washington Coast\nOcean",
+                                fishery_region == "nfalc_t" ~ "Washington Coast\nOcean",
+                                fishery_region == "US_is_tot" ~ "Washington Coast\nOcean",
+                                
+                                # WA     
+                                fishery_region == "PS_n" ~ "Puget Sound",
+                                fishery_region == "PS_s" ~ "Puget Sound",
+                                
+                                fishery_region == "wac_n" ~ "Washington Coast\nIn-River",
+                                # Other
+                                TRUE                                    ~ "Check"))
 
-unique(pie_df2$broad_region)
+total_FMnumbers <- Oly_Pen_fish_individ %>%
+  group_by(year) %>%
+  # get annual sum of all fishery mortality from OP for the year
+  dplyr::summarise(total_FM_numbers = sum(mortality_numbers))  # want to ask, of all the fish caught that year, what was the relative proportions. Not related to overall runsize. 
+
+mean_FM <-total_FMnumbers %>% 
+  filter(year >2008) %>%
+  summarise(mean = mean(total_FM_numbers))
+
+OP_plot_df_individ<- Oly_Pen_fish_individ %>% 
+  dplyr::select(-c(total_run, percent_mort)) %>%
+  ungroup() %>%
+  group_by(year, broad_region, fishery_region) %>%
+  dplyr::summarise(mort_fishery_region = sum(mortality_numbers)) %>% 
+  left_join(total_FMnumbers) %>%
+  dplyr::mutate(percent_mort = mort_fishery_region/total_FM_numbers)
+
+indiv_pie_df <- OP_plot_df_individ %>%
+  filter(year >2008) %>%
+  group_by(broad_region,fishery_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(fishery_region)) %>%  # match fill order
+  mutate(
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,  # midpoint of each slice
+    label = paste0(round(avg_mort * 100, 1), "%")  # format as percent
+  )
+ 
+OP_pie_individ <- ggplot(indiv_pie_df, aes(x = "", y = avg_mort, fill = fishery_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_text(aes(y = cum_pos, 
+                label = ifelse(avg_mort >= 0.05, paste0(round(avg_mort * 100, 1), "%"), "") #label = label
+  ), 
+  size = 3, 
+  fontface = "bold",
+  color = "black") +
+  coord_polar(theta = "y") +
+   # scale_fill_viridis_d( ) +  
+  labs(title = "Avg 2009-2020") +
+  theme_void() +
+  facet_wrap(~broad_region) + 
+  theme( 
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+
+OP_pie_individ
 
 ## 2.5 OP Pie Stand Alone ==========
 pie_df2 <- OP_plot_df %>%
@@ -173,13 +263,14 @@ pie_df2 <- OP_plot_df %>%
   ) 
 
 custom_pal <- c(
-  "Washington Coast\nIn-River" = "#2D6E7E",    
-  "Washington Coast\nOcean"    = "#7FA8B8",
+  "Washington Coast\nIn-River" = "#2E5F6E",    
+  "Washington Coast\nOcean"    = "#6A9BA8",
   "South of Falcon"            = "#E8E8E8",   
   "Puget Sound"                = "grey",  
-  "British Columbia"           = "#A8B8A0",  
-  "Alaska"                     = "#C8D4D8"
+  "British Columbia"           = "#8A9E7A", 
+  "Alaska"                     = "#4A7A50"
 )
+  
  
 OP_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
   geom_col(color = "black", alpha = 0.9, width = 1) +
@@ -188,21 +279,21 @@ OP_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
   # Labels inside for large slices
   geom_text(aes(y = cum_pos,
                 label = ifelse(avg_mort >= 0.05, paste0(label), "")),
-            size = 4, fontface = "bold", color = "black") + 
+            size = 4, fontface = "bold", family = "dm_sans",color = "black") + 
   # Labels outside for small slices — nudge x past 1 to push outside pie
   geom_text(aes(y = cum_pos,
                 label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, paste0(label), "")),
-            x = 1.63,   # >1 pushes outside the pie (pie lives at x = 1)
-            size = 2.6, fontface = "bold", color = "black") + 
+            x = 1.7,   # >1 pushes outside the pie (pie lives at x = 1)
+            size = 2.6, fontface = "bold", family = "dm_sans",color = "black") + 
   coord_polar(theta = "y", clip = "off") +   
   scale_fill_manual(values = custom_pal, name = "Fishery Region") +  
   theme_void() +
   theme(
-    legend.position   = "top",
-    legend.title      = element_text(size = 10, face = "bold"),
-    legend.text       = element_text(size = 9),
+    legend.position   = "none",
+    legend.title      = element_text(family = "dm_sans",size = 10, face = "bold"),
+    legend.text       = element_text(family = "dm_sans",size = 9),
     legend.margin     = margin(t = 10, b = -10, unit = "mm"),  # positive t pushes down, negative b pulls pie up
-    # legend.key.size   = unit(0.4, "cm"),   # smaller legend keys
+    legend.key.size   = unit(0.4, "cm"),   # smaller legend keys
     legend.spacing.x  = unit(0.2, "cm"),   # tighten horizontal spacing
     plot.margin       = margin(0, 5, 0, 5, "mm"),  # reduce outer margins
     plot.background   = element_blank()
@@ -210,15 +301,18 @@ OP_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
 
 OP_pie2
 
-ggsave(
-  filename = "output/plots/OP_FM_PieOnly.jpeg",
-  plot = OP_pie2,
-  width =6,
-  height =5.5,
-  dpi = 300,
-  units = "in"
-)
+showtext_opts(dpi = 300)
 
+ggsave(
+  filename = "output/plots/OP_FM_PieOnly.png",
+  plot = OP_pie2,
+  width = 4,
+  height = 4,
+  dpi = 300,
+  units = "in",
+  bg = "transparent"
+)
+ 
 
 ##  3. Main bar chart ==================
 OP_FM_stacked <- ggplot(OP_plot_df,

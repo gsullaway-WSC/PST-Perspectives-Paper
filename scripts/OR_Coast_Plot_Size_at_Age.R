@@ -96,7 +96,7 @@ plot_year_trends <- function(year_effects_list) {
 
 #plot_year <- plot_year_trends(year_effects_list=year_eff)
 
-
+# Load results ===== 
 # make plot for story that has size at age for all ages, model output year effects 
 results <- readRDS("output/OR_Coast_sizeatage_LME_results.RDS")
 
@@ -105,7 +105,7 @@ all_year_effects <- lapply(results$models, extract_year_effects)
 combined_effects <- bind_rows(all_year_effects) %>%
   group_by(ocean_age) %>%
   complete(year = full_seq(year, 1)) %>%  # Fill in missing years with NA
-  ungroup()  
+  ungroup()   
 
 # Convert length to fecundity (1mm = 7.8 eggs)
 combined_effects <- combined_effects %>%
@@ -216,15 +216,16 @@ boxplot_first_last <- ggplot(boxplot_data, aes(x = period, y = predicted_length,
 
 boxplot_first_last
  
-# Predicted lengths Stacked ====== # Convert mm to inches first
+# USE FOR STORY predicted lengths Stacked ====== 
+# Convert mm to inches first
 combined_effects_in <- combined_effects %>%
   mutate(
     predicted_length  = predicted_length / 25.4,
     predicted_lower   = predicted_lower / 25.4,
     predicted_upper   = predicted_upper / 25.4
-  )
-
-# Predicted lengths Stacked ====== 
+  ) %>% 
+  filter(!year < 1986)
+ 
 predicted_plot_together <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5),!year ==1980), 
                                   aes(x = year, y = predicted_length, 
                                       color = factor(ocean_age), 
@@ -255,6 +256,50 @@ predicted_plot_together <- ggplot(combined_effects_in %>% filter(!ocean_age %in%
 predicted_plot_together
 
 ggsave("output/plots/OR_Coast_size_at_age_predicted_together.png", predicted_plot_together, 
+       width = 8, height = 9, dpi = 300)
+
+
+## predicted lengths - just age 4 ====== 
+combined_effects_in <- combined_effects %>%
+  mutate(
+    predicted_length  = predicted_length / 25.4,
+    predicted_lower   = predicted_lower / 25.4,
+    predicted_upper   = predicted_upper / 25.4
+  ) %>% 
+  filter(!year < 1986)
+
+predicted_plot_age4 <- ggplot(combined_effects_in %>% filter(ocean_age %in% c(4),
+                                                             !year ==1980), 
+                                  aes(x = year, y = predicted_length, 
+                                      color = factor(ocean_age), 
+                                      fill = factor(ocean_age))) +
+  # Model predictions
+  geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
+  geom_line(size = 1.2, na.rm = TRUE) +
+  geom_point(size = 2) +
+  geom_vline(xintercept = 1999, linetype = 2)+
+  scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                                "3" = "#009E73", "4" = "#F5B800", "5" = "#CC79A7"),
+                     name = "Ocean Age") +
+  scale_fill_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                               "3" = "#009E73", "4" = "#F5B800", "5" = "#CC79A7"),
+                    name = "Ocean Age") +
+  labs(
+    title = "Trends in Oregon Coast Chinook Salmon\nPredicted Length-at-Age",
+    x = "Brood Year",
+    y = "Predicted Length (in)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    legend.title = element_text(face = "bold")
+  ) 
+
+predicted_plot_age4
+
+ggsave("output/plots/OR_Coast_size_AGE4_predicted_together.png", predicted_plot_age4, 
        width = 8, height = 9, dpi = 300)
 
 # Predicted lengths Faceted ====== 

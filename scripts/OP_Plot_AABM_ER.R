@@ -74,6 +74,13 @@ joined_df <- OP_total_run_df %>%
                            TRUE ~ FALSE)) %>%
   ungroup()
 
+
+total_esc_sum <- joined_df %>%
+  group_by(year) %>%
+  summarise(sum = sum(esc_tot)) %>%
+  filter(!is.na(sum), year > 2008) %>%
+  summarise(mean = mean(sum))
+
 # Full ER in background plot ======
 new_plot_df <- joined_df %>% 
   filter(!year ==2023,
@@ -83,7 +90,7 @@ new_plot_df <- joined_df %>%
                                        StockName =="Queets SprSum" ~ "Queets S.", 
                                        StockName =="Quillayute Fall" ~ "Quillayute F.",
                                       TRUE ~ StockName))
-
+# plot for story =======
 new_ER_Plot<-ggplot( new_plot_df, aes(x = year, y = esc_tot)) +
   
   # Background shading scaled continuously to ER rate
@@ -132,8 +139,20 @@ new_ER_Plot<-ggplot( new_plot_df, aes(x = year, y = esc_tot)) +
 
 
 new_ER_Plot
+# 
+# ggsave("output/plots/OP_esc_goal_ER_plot.jpeg",
+#        plot = new_ER_Plot,
+#        width = 8, height = 5,
+#        dpi = 300, units = "in")
+# 
+# jpeg("output/plots/OP_esc_goal_ER_plot.jpeg", 
+#      width = 8, height = 5, 
+#      units = "in", 
+#      res = 300,        # <-- res instead of dpi
+#      quality = 95)
 
-ggsave("output/plots/OP_esc_goal_ER_plot.jpeg",
+# better for story design
+ggsave("output/plots/OP_esc_goal_ER_plot.png",
        plot = new_ER_Plot,
        width = 8, height = 5,
        dpi = 300, units = "in")

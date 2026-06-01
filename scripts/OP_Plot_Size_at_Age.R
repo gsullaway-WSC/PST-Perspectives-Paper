@@ -98,7 +98,7 @@ plot_year_trends <- function(year_effects_list) {
 
 
 # make plot for story that has size at age for all ages, model output year effects 
-results <- readRDS("output/sizeatage_LME_results.RDS")
+results <- readRDS("output/OP_sizeatage_LME_results.RDS")
 
 # Extract year effects for all ages
 all_year_effects <- lapply(results$models, extract_year_effects)
@@ -224,7 +224,7 @@ combined_effects_in <- combined_effects %>%
     predicted_upper   = predicted_upper / 25.4
   )
 
-# Predicted lengths Stacked ====== 
+# Main plot for stories = Predicted lengths Stacked ====== 
 predicted_plot_together <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5)), 
                                   aes(x = year, y = predicted_length, 
                                       color = factor(ocean_age), 
@@ -254,8 +254,128 @@ predicted_plot_together <- ggplot(combined_effects_in %>% filter(!ocean_age %in%
 
 predicted_plot_together
 
-ggsave("output/plots/size_at_age_predicted_together.png", predicted_plot_together, 
+ggsave("output/plots/OP_size_at_age_predicted_together.png", predicted_plot_together, 
        width = 8, height = 9, dpi = 300)
+
+## Trend line, main plot for stories = Predicted lengths Stacked ====== 
+trend_plot <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5)), 
+                     aes(x = year, y = predicted_length, 
+                         color = factor(ocean_age), 
+                         fill = factor(ocean_age))) +
+  # Model predictions
+  # geom_smooth(span = 0.5, se = FALSE, alpha = 0.4) + 
+  geom_smooth(span = 0.5, se = FALSE, linewidth = 1, alpha = 0.4,
+              aes(group =  factor(ocean_age), color = factor(ocean_age)), linetype =4) + 
+   # geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
+  # geom_line(size = 1.2, na.rm = TRUE) +
+  geom_point(size = 2,alpha = 0.7) +
+  geom_errorbar(aes(ymin = predicted_lower, ymax = predicted_upper),
+                alpha = 0.5, width = 0.1) + 
+  scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                                "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                     name = "Ocean Age") +
+  scale_fill_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                               "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                    name = "Ocean Age") +
+  labs(
+    title = "Trends in Olympic Peninsula Chinook Salmon\nPredicted Length-at-Age",
+    x = "Brood Year",
+    y = "Predicted Length (in)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    legend.title = element_text(face = "bold")
+  ) 
+
+trend_plot
+
+ggsave("output/plots/OP_trend_size_at_age_predicted_together.png", 
+       trend_plot, 
+       width = 8, height = 9, dpi = 300)
+
+## alt Trend line, main plot for stories = Predicted lengths Stacked ====== 
+trend_plot <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5)), 
+                                  aes(x = year, y = predicted_length, 
+                                      color = factor(ocean_age), 
+                                      fill = factor(ocean_age))) +
+  # Model predictions
+  # geom_smooth(span = 0.5, se = FALSE, alpha = 0.4) + 
+  geom_smooth(span = 0.5, se = FALSE, linewidth = 1, alpha = 0.4,
+              aes(group =  factor(ocean_age), color = factor(ocean_age)), linetype =4) +
+  facet_wrap(~ocean_age) + # , nrow =3, scales = "free_y") + 
+  # geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
+  # geom_line(size = 1.2, na.rm = TRUE) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = predicted_lower, ymax = predicted_upper),
+                alpha = 0.5, width = 0.1) + 
+  scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                                "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                     name = "Ocean Age") +
+  scale_fill_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                               "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                    name = "Ocean Age") +
+  labs(
+    title = "Trends in Olympic Peninsula Chinook Salmon\nPredicted Length-at-Age",
+    x = "Brood Year",
+    y = "Predicted Length (in)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    legend.title = element_text(face = "bold")
+  ) 
+
+trend_plot
+
+ggsave("output/plots/OP_alt_trend_size_at_age_predicted_together.png", 
+       trend_plot, 
+       width = 9, height = 6, dpi = 300)
+
+
+## no points Trend line, main plot for stories = Predicted lengths Stacked ====== 
+trend_plotnopoints <- ggplot(combined_effects_in %>% filter(!ocean_age %in% c(1,5)), 
+                     aes(x = year, y = predicted_length, 
+                         color = factor(ocean_age), 
+                         fill = factor(ocean_age))) +
+  # Model predictions
+  geom_smooth( ) + 
+  # facet_wrap(~ocean_age) +
+  # geom_ribbon(aes(ymin = predicted_lower, ymax = predicted_upper), alpha = 0.2, color = NA) +
+  # geom_line(size = 1.2, na.rm = TRUE) +
+  # geom_point(size = 2) +
+  scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                                "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                     name = "Ocean Age") +
+  scale_fill_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
+                               "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
+                    name = "Ocean Age") +
+  labs(
+    title = "Trends in Olympic Peninsula Chinook Salmon\nPredicted Length-at-Age",
+    x = "Brood Year",
+    y = "Predicted Length (in)"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), 
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = 0.5),
+    legend.title = element_text(face = "bold")
+  ) 
+
+trend_plotnopoints
+
+ggsave("output/plots/OP_trend_nopoints_size_at_age_predicted_together.png", 
+       trend_plotnopoints, 
+       width = 8, height = 9, dpi = 300)
+
 
 # Predicted lengths Faceted ====== 
 predicted_plot_facet <- ggplot(combined_effects %>% filter(!ocean_age %in% c(1,5)), 
@@ -371,45 +491,3 @@ ggsave("output/plots/fecundity_at_age_predicted_facet.png", predicted_fecundity_
        width = 12, height = 8, dpi = 300)
 ggsave("output/plots/fecundity_at_age_boxplot_first_last.png", boxplot_fecundity_first_last, 
        width = 12, height = 8, dpi = 300)
-
-## OLD mean scaled plot ==== 
-# Mean-scale the predictions
-# combined_effects_scale <- combined_effects %>%
-#   group_by(ocean_age) %>%
-#   mutate(
-#     predicted_scaled = scale(predicted_length, center = TRUE, scale = FALSE)[,1],
-#     predicted_scaled_lower = scale(predicted_lower, center = TRUE, scale = FALSE)[,1],
-#     predicted_scaled_upper = scale(predicted_upper, center = TRUE, scale = FALSE)[,1]
-#   ) %>%
-#   ungroup()
-# 
-# # PLOT: Mean-scaled predictions
-# scaled_plot <- ggplot(combined_effects_scale, aes(x = year, y = predicted_scaled, 
-#                                                   color = factor(ocean_age), 
-#                                                   fill = factor(ocean_age))) +
-#   geom_line(size = 1.2, na.rm = TRUE) +
-#   geom_point(size = 2) +
-#   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-#   scale_color_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
-#                                 "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
-#                      name = "Ocean Age") +
-#   scale_fill_manual(values = c("1" = "#E69F00", "2" = "#56B4E9", 
-#                                "3" = "#009E73", "4" = "#D55E00", "5" = "#CC79A7"),
-#                     name = "Ocean Age") +
-#   labs(
-#     title = "Mean-scaled length-at-age predicted trends",
-#     subtitle = "Predicted lengths centered on their means",
-#     x = "Brood Year",
-#     y = "Deviation from mean length (mm)"
-#   ) +
-#   theme_bw(base_size = 14) +
-#   theme(
-#     legend.position = "bottom",
-#     panel.grid.minor = element_blank(),
-#     plot.title = element_text(face = "bold", size = 16),
-#     legend.title = element_text(face = "bold")
-#   )  
-# 
-# scaled_plot
-# ggsave("output/plots/size_at_age_meanscale_ESTIMATED.png", scaled_plot, 
-#        width = 12, height = 8, dpi = 300)

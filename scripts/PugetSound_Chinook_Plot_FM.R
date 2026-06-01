@@ -6,6 +6,15 @@ library(cowplot)
 library(ggrepel)
  
 # custom colors =====
+
+custom_pal_pie <- c(
+  "Puget Sound\nIn-River" = "#2D6E7E",    
+  "Puget Sound"    = "#7FA8B8",
+  "Washington"            = "#E8E8E8",   
+  "Oregon"                = "grey",  
+  "British Columbia"           = "#A8B8A0",  
+  "Alaska"                     = "#C8D4D8"
+)
 custom_pal <- c(
   "Puget Sound\nIn-River" =  "#0096C7",    
   "Puget Sound"  =  "#8B7BB5",
@@ -23,8 +32,7 @@ custom_pal <- c(
 #   "Alaska"                    =  "#FDE725"  # viridis purple for Alaska
 # )
 
-unique(data$population)
-
+ 
 # load ====== 
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
   filter(region %in% c("PS"),
@@ -46,7 +54,7 @@ catch_distributions <- data %>%
                                 )) %>%
   dplyr::mutate(percent_mort = as.numeric(percent_mort)/100) 
  
-unique(PS_fish$fishery_region)
+ 
 
 # PS whole ======= 
 PS_fish <- catch_distributions %>%
@@ -166,15 +174,7 @@ pie_df2 <- PS_plot_df %>%
     cum_pos = cumsum(avg_mort) - avg_mort / 2,
     label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
   ) 
-
-custom_pal_pie <- c(
-  "Puget Sound\nIn-River" = "#2D6E7E",    
-  "Puget Sound"    = "#7FA8B8",
-  "Washington"            = "#E8E8E8",   
-  "Oregon"                = "grey",  
-  "British Columbia"           = "#A8B8A0",  
-  "Alaska"                     = "#C8D4D8"
-)
+ 
 
 PS_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
   geom_col(color = "black", alpha = 0.9, width = 1) +
@@ -188,6 +188,7 @@ PS_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
             x = 1.3,   # >1 pushes outside the pie (pie lives at x = 1)
             size =3, fontface = "bold", color = "black") + 
   coord_polar(theta = "y", clip = "off") +   
+  ggtitle("Puget Sound") + 
   scale_fill_manual(values = custom_pal_pie, name = "Fishery Region") +  
   theme_void() +
   theme(
@@ -204,7 +205,7 @@ PS_pie2 <- ggplot(pie_df2, aes(x = "", y = avg_mort, fill = broad_region)) +
 PS_pie2
 
 ggsave(
-  filename = "output/plots/PS_FM_PieOnly.jpeg",
+  filename = "output/plots/Puget Sound Plots/PS_FM_PieOnly.jpeg",
   plot = PS_pie2,
   width =6,
   height =5.5,
@@ -299,7 +300,7 @@ final_plot
 
 # --- 5. Save as JPEG ---
 ggsave(
-  filename = "output/plots/PS_Chinook_FM_stacked.jpeg",
+  filename = "output/plots/Puget Sound Plots/PS_Chinook_FM_stacked.jpeg",
   plot = final_plot,
   width =6,
   height =5,
@@ -417,7 +418,7 @@ Nooksack <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
 Nooksack
 
 ggsave(
-  filename = "output/plots/Nooksack_FM_PieOnly.jpeg",
+  filename = "output/plots/Puget Sound Plots/Nooksack_FM_PieOnly.jpeg",
   plot = Nooksack,
   width =6,
   height =5.5,
@@ -473,8 +474,120 @@ Stillaguamish <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) 
 Stillaguamish
 
 ggsave(
-  filename = "output/plots/Stillaguamish_FM_PieOnly.jpeg",
+  filename = "output/plots/Puget Sound Plots/Stillaguamish_FM_PieOnly.jpeg",
   plot = Stillaguamish,
+  width =6,
+  height =5.5,
+  dpi = 300,
+  units = "in"
+) 
+
+### Skagit Spring ========= 
+pie_df <- PS_plot_df %>%
+  filter(year > 2008,
+         population %in% c("Skagit_sp")) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%             # consistent ordering within each facet
+  dplyr::mutate(
+    custom_region = case_when(broad_region == "Alaska" ~ "AK",
+                              broad_region == "British Columbia" ~ "BC",
+                              broad_region == "Puget Sound" ~ "PS\nOther",
+                              broad_region == "Oregon" ~ "OR",   
+                              broad_region == "Puget Sound\nIn-River" ~ "In-River", 
+                              broad_region == "Washington" ~ "WA",
+                              TRUE ~ NA), 
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,
+    label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
+  ) %>% 
+  ungroup()
+
+skagit_sp <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort >= .16, paste0(label), "")),
+            size = 4, fontface = "bold", color = "black") + 
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort > .1 & avg_mort < 0.16 , paste0(label), "")),
+            x = 1.2,   # >1 pushes outside the pie (pie lives at x = 1)
+            size =3, fontface = "bold", color = "black") + 
+  # Labels outside for small slices — nudge x past 1 to push outside pie
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort < .1 & avg_mort > 0.02 , paste0(label), "")),
+            x = 1.63,   # >1 pushes outside the pie (pie lives at x = 1)
+            size =3, fontface = "bold", color = "black") + 
+  coord_polar(theta = "y", clip = "off") +  
+  scale_fill_manual(values = custom_pal_pie, name = "Fishery Region") +  
+  labs(title = "Skagit Spring, Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+
+skagit_sp 
+
+ggsave(
+  filename = "output/plots/Puget Sound Plots/Skagit_Sp_FM_PieOnly.jpeg",
+  plot = skagit_sp,
+  width =6,
+  height =5.5,
+  dpi = 300,
+  units = "in"
+) 
+
+### Skagit Fall ========= 
+pie_df <- PS_plot_df %>%
+  filter(year > 2008,
+         population %in% c("Skagit_fa")) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%             # consistent ordering within each facet
+  dplyr::mutate(
+    custom_region = case_when(broad_region == "Alaska" ~ "AK",
+                              broad_region == "British Columbia" ~ "BC",
+                              broad_region == "Puget Sound" ~ "PS\nOther",
+                              broad_region == "Oregon" ~ "OR",   
+                              broad_region == "Puget Sound\nIn-River" ~ "In-River", 
+                              broad_region == "Washington" ~ "WA",
+                              TRUE ~ NA), 
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,
+    label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
+  ) %>% 
+  ungroup()
+
+skagit_fa <- ggplot(pie_df, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) +
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort >= .16, paste0(label), "")),
+            size = 4, fontface = "bold", color = "black") + 
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort > .1 & avg_mort < 0.16 , paste0(label), "")),
+            x = 1.2,   # >1 pushes outside the pie (pie lives at x = 1)
+            size =3, fontface = "bold", color = "black") + 
+  # Labels outside for small slices — nudge x past 1 to push outside pie
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort < .1 & avg_mort > 0.02 , paste0(label), "")),
+            x = 1.63,   # >1 pushes outside the pie (pie lives at x = 1)
+            size =3, fontface = "bold", color = "black") + 
+  coord_polar(theta = "y", clip = "off") +  
+  scale_fill_manual(values = custom_pal_pie, name = "Fishery Region") +  
+  labs(title = "Skagit Fall, Avg 2009-2020") +
+  theme_void() +
+  theme(
+    legend.position = "top",
+    plot.title = element_text(size = 10, hjust = 0.5, face = "bold"),
+    plot.background = element_blank()
+  )
+
+skagit_fa
+
+ggsave(
+  filename = "output/plots/Puget Sound Plots/Skagit_Fa_FM_PieOnly.jpeg",
+  plot = skagit_sp,
   width =6,
   height =5.5,
   dpi = 300,

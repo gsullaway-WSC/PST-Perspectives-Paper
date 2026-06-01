@@ -200,16 +200,8 @@ ggsave("output/plots/esc_goal_plotER.jpeg",
        plot = esc_goal_plotER,
        width = 12, height = 10,
        dpi = 300, units = "in")
-
-
  
-
-
-## TEST Plot with Esc Goals & ER ======
-# er_means <- joined_df %>% 
-#   group_by(population) %>%
-#   summarise(mean = mean(er)) 
-
+## STORY BEST Plot with Esc Goals & ER ====== 
 new_ER_Plot<-ggplot(joined_df %>% 
          filter(population %in% c("Nehalem Fall", "Siletz Fall", "Siuslaw Fall")) %>%  
          dplyr::mutate(er = as.numeric(er)), aes(x = year, y = esc_tot)) +
@@ -258,16 +250,23 @@ new_ER_Plot<-ggplot(joined_df %>%
     panel.grid.minor = element_blank()
   )
  
-
 ggsave("output/plots/OR_Coast_esc_goal_ER_plot.jpeg",
        plot = new_ER_Plot,
        width = 8, height = 5,
        dpi = 300, units = "in")
 
-### Test Trend Line ====
-new_ER_Plot2<-ggplot(joined_df %>% 
-                      filter(population %in% c("Nehalem Fall", "Siletz Fall", "Siuslaw Fall")) %>%  
-                      dplyr::mutate(er = as.numeric(er)), aes(x = year, y = esc_tot)) +
+# better for story design
+ggsave("output/plots/OR_COAST_esc_goal_ER_plot.png",
+       plot = new_ER_Plot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+## Just Suislaw ===========
+ 
+SuislawPlot <- ggplot(joined_df %>% 
+                      filter(population %in% c("Siuslaw Fall")) %>%  
+                      dplyr::mutate(er = as.numeric(er)), 
+                      aes(x = year, y = esc_tot)) +
   
   # Background shading scaled continuously to ER rate
   geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
@@ -278,10 +277,11 @@ new_ER_Plot2<-ggplot(joined_df %>%
   geom_col(alpha = 0.85) +
   
   # Escapement goal dashed line
-  geom_path(aes(y = esc_goal), color = "black") + #, linetype = 2) +
+  geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
   
   # Red points for vulnerable years
-  geom_point(data = joined_df %>% filter(vulnerable_er == TRUE),
+  geom_point(data = joined_df %>% filter(vulnerable_er == TRUE,
+                                         population %in% c("Siuslaw Fall")),
              aes(x = year, y = esc_tot),
              color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
   
@@ -293,9 +293,6 @@ new_ER_Plot2<-ggplot(joined_df %>%
     name     = "Exploitation Rate"
   ) +
   
-  geom_smooth(aes(y = esc_tot), method = "lm",
-              color = "black", linetype = 2, alpha = 0.5, linewidth = 0.8, se = FALSE) +
-  
   scale_y_continuous(expand = c(0,0)) +
   scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
   
@@ -303,7 +300,7 @@ new_ER_Plot2<-ggplot(joined_df %>%
   
   labs(
     title    = "Oregon Coast Chinook Escapement vs. Exploitation Rates",
-    subtitle = "Red shading = Exploitation Rates\nSolid line = Escapement Goal, Dashed Line = Escapement Trend \n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    subtitle = "Red shading = Exploitation Rates\nDashed line = Escapement Goal\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
     x = "Year", y = "Escapement"
   ) +
   
@@ -316,16 +313,238 @@ new_ER_Plot2<-ggplot(joined_df %>%
     panel.grid.minor = element_blank()
   )
 
-new_ER_Plot2
-
-ggsave("output/plots/OR_Coast_esc_goal_ER_plot_trendline.jpeg",
-       plot = new_ER_Plot2,
+ggsave("output/plots/Suislaw_esc_goal_ER_plot.jpeg",
+       plot = SuislawPlot,
        width = 8, height = 5,
        dpi = 300, units = "in")
 
 
 
 
+## Layers for Board Mtg - Suislaw ===========
+
+SuislawPlot <- ggplot(joined_df %>% 
+                        filter(population %in% c("Siuslaw Fall")) %>%  
+                        dplyr::mutate(er = as.numeric(er))#, 
+                      #aes(x = year, y = esc_tot)
+                      ) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # # Escapement bars
+  # geom_col(alpha = 0.85) +
+  # 
+  # # Escapement goal dashed line
+  # geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+  # 
+  # # Red points for vulnerable years
+  # geom_point(data = joined_df %>% filter(vulnerable_er == TRUE,
+  #                                        population %in% c("Siuslaw Fall")),
+  #            aes(x = year, y = esc_tot),
+  #            color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  # 
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  geom_blank(aes(x = year, y = esc_tot)) + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(
+    # title    = "Oregon Coast Chinook Escapement vs. Exploitation Rates",
+    # subtitle = "Red shading = Exploitation Rates\nDashed line = Escapement Goal\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/plots/Layer_1_Suislaw_esc_goal_ER_plot.jpeg",
+       plot = SuislawPlot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+### LAYER 2 ===========
+SuislawPlot <- ggplot(joined_df %>% 
+                        filter(population %in% c("Siuslaw Fall")) %>%  
+                        dplyr::mutate(er = as.numeric(er)), 
+                       aes(x = year, y = esc_tot)
+) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # # Escapement bars
+  geom_col(alpha = 0.85) +
+  # 
+  # # Escapement goal dashed line
+  # geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+  # 
+  # # Red points for vulnerable years
+  # geom_point(data = joined_df %>% filter(vulnerable_er == TRUE,
+  #                                        population %in% c("Siuslaw Fall")),
+  #            aes(x = year, y = esc_tot),
+  #            color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  # 
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  geom_blank(aes(x = year, y = esc_tot)) + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/plots/Layer_2_Suislaw_esc_goal_ER_plot.jpeg",
+       plot = SuislawPlot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+
+### LAYER 2.5 ===========
+SuislawPlot <- ggplot(joined_df %>% 
+                        filter(population %in% c("Siuslaw Fall")) %>%  
+                        dplyr::mutate(er = as.numeric(er)), 
+                      aes(x = year, y = esc_tot)
+) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # # Escapement bars
+  geom_col(alpha = 0.85) +
+  # 
+  # Escapement goal dashed line
+  geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+  
+  # # Red points for vulnerable years
+  # geom_point(data = joined_df %>% filter(vulnerable_er == TRUE,
+  #                                        population %in% c("Siuslaw Fall")),
+  #            aes(x = year, y = esc_tot),
+  #            color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  geom_blank(aes(x = year, y = esc_tot)) + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/plots/Layer_2.5_Suislaw_esc_goal_ER_plot.jpeg",
+       plot = SuislawPlot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+### LAYER 3 ===========
+SuislawPlot <- ggplot(joined_df %>% 
+                        filter(population %in% c("Siuslaw Fall")) %>%  
+                        dplyr::mutate(er = as.numeric(er)), 
+                      aes(x = year, y = esc_tot)
+) +
+  
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # # Escapement bars
+  geom_col(alpha = 0.85) +
+  # 
+  # Escapement goal dashed line
+  geom_path(aes(y = esc_goal), color = "black", linetype = 2) +
+
+  # Red points for vulnerable years
+  geom_point(data = joined_df %>% filter(vulnerable_er == TRUE,
+                                         population %in% c("Siuslaw Fall")),
+             aes(x = year, y = esc_tot),
+             color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.46, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate"
+  ) +
+  geom_blank(aes(x = year, y = esc_tot)) + 
+  scale_y_continuous(expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) +
+  
+  facet_wrap(~ StockName, scales = "free_y", nrow =1) +
+  
+  labs(x = "Year", y = "Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("output/plots/Layer_3_Suislaw_esc_goal_ER_plot.jpeg",
+       plot = SuislawPlot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+
+
+# OLD ================
 # Select stocks plot ====
 select_joined_df <- joined_df %>%
         filter(StockName %in% 
