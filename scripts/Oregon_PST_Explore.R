@@ -23,6 +23,7 @@ custom_pal <- c(
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
   filter(region %in% c("OC","ORC"),
          !year == 2023, !is.na(total_run), !total_run =="NA") 
+ 
 
 total_run_df<-data %>%  
   dplyr::select(year,population,region,total_run) %>%
@@ -352,11 +353,11 @@ ggsave(
   df <- ERs |>
     mutate(
       annual_er = as.numeric(annual_er),
-      period    = if_else(year < 2012, "Pre-2012", "Post-2012"),
-      period    = factor(period, levels = c("Pre-2012", "Post-2012"))
+      period    = if_else(year < 2019, "Pre-2019", "Post-2019"),
+      period    = factor(period, levels = c("Pre-2019", "Post-2019"))
     )
   
-  intervention_year <- 2012
+  intervention_year <- 2019
   
   pop_colors <- setNames(
     scales::hue_pal()(length(unique(df$population))),
@@ -389,13 +390,13 @@ ggsave(
     # geom_point(size = 1.8, alpha = 0.8) +
     intervention_vline +
     annotate("text", x = intervention_year + 0.3, y = Inf,
-             label = "2012", hjust = 0, vjust = 1.5,
+             label = "2019", hjust = 0, vjust = 1.5,
              size = 2.8, color = "grey40") +
     scale_color_manual(values = pop_colors) +
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 4)) +
     labs(
       title    = "AK exploitation rate by OR Chinook population",
-      subtitle = "Did AK ER drop post-2012 across populations?",
+      subtitle = "Did AK ER drop post-2019 across populations?",
       x = NULL, y = "AK exploitation rate"
     ) +
     base_theme + facet_wrap(~population)
@@ -410,7 +411,7 @@ ggsave(
     geom_point(size = 1.8, alpha = 0.8) +
     intervention_vline +
     annotate("text", x = intervention_year + 0.3, y = Inf,
-             label = "2012", hjust = 0, vjust = 1.5,
+             label = "2019", hjust = 0, vjust = 1.5,
              size = 2.8, color = "grey40") +
     scale_color_manual(values = pop_colors) +
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 4)) +
@@ -440,7 +441,7 @@ ggsave(
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 4)) +
     labs(
       title    = "AK share of total exploitation rate, by population",
-      subtitle = "AK ER / total ER — drop post-2012 = AK pressure reduced relative to other fisheries",
+      subtitle = "AK ER / total ER — drop post-2019 = AK pressure reduced relative to other fisheries",
       x = NULL, y = "AK share of total ER"
     ) +
     base_theme
@@ -454,10 +455,10 @@ ggsave(
     ggplot(aes(x = ak_er, y = annual_er, color = period)) +
     geom_smooth(method = "lm", se = TRUE, alpha = 0.12, linewidth = 0.8) +
     geom_point(aes(shape = population), size = 2.5, alpha = 0.8) +
-    scale_color_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
+    scale_color_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     labs(
       title    = "AK ER vs total annual ER — pre vs post 2012",
-      subtitle = "Leakage = post-2012 points shift left (AK ↓) but stay high on y-axis (total ER unchanged)",
+      subtitle = "Leakage = post-2019 points shift left (AK ↓) but stay high on y-axis (total ER unchanged)",
       x = "AK exploitation rate", y = "Total annual exploitation rate",
       color = NULL, shape = "Population"
     ) +
@@ -482,7 +483,7 @@ ggsave(
     facet_wrap(~population, scales = "free_y") +
     labs(
       title    = "AK ER vs total ER by population (faceted)",
-      subtitle = "Gap between lines = non-AK fishery pressure. Widening gap post-2012 = leakage",
+      subtitle = "Gap between lines = non-AK fishery pressure. Widening gap post-2019 = leakage",
       x = NULL, y = "Exploitation rate", color = NULL
     ) +
     base_theme
@@ -490,43 +491,59 @@ ggsave(
   # ── PLOT 6: Before/after boxplots ─────────────────────────────────────────────
   # Distribution of AK ER and total ER across populations and years, pre vs post
   
-  p6 <- df |>
+# 10-YEAR PERIODS WORKING BACK FROM 2019 ────────────────────────────────────
+  # Assign each year to a decade bin, working backwards from 2019
+  
+  max_year <- max(df$year)  # whatever your most recent year is
+  
+  df_decades <- df |>
+    mutate(
+      decade = case_when(
+        year >= 2019             ~ paste0("2019–", max_year),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ paste0("Pre-1979")
+      ),
+      # order chronologically oldest to newest
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max_year)
+      ))
+    )
+  
+  # palette — one color per decade, light to dark
+  decade_levels <- levels(df_decades$decade)
+  decade_colors <- setNames(
+    colorRampPalette(c("#d4a84b", "#8b2020"))(length(decade_levels)),
+    decade_levels
+  )
+  
+  p6 <- df_decades |>
     pivot_longer(cols = c(annual_er, ak_er),
                  names_to = "er_type", values_to = "er_value") |>
     mutate(er_type = recode(er_type,
                             "annual_er" = "Total annual ER",
                             "ak_er"     = "AK ER")) |>
-    ggplot(aes(x = period, y = er_value, fill = period)) +
-    geom_boxplot(alpha = 0.7, outlier.size = 1.5) +
-    geom_jitter(width = 0.15, size = 0.8, alpha = 0.4) +
-    scale_fill_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
+    ggplot(aes(x = decade, y = er_value, fill = decade)) +
+    geom_boxplot(alpha = 0.8, outlier.size = 1.2, linewidth = 0.4) +
+    geom_jitter(width = 0.18, size = 0.7, alpha = 0.35) +
+    stat_summary(fun = mean, geom = "point", shape = 18,
+                 size = 3, color = "white", show.legend = FALSE) +
+    scale_fill_manual(values = decade_colors) +
+    scale_x_discrete(guide = guide_axis(angle = 30)) +
     facet_wrap(~er_type, scales = "free_y") +
     labs(
-      title    = "Exploitation rate distributions — pre vs post 2012",
-      subtitle = "Across all populations and years. Did both AK ER and total ER shift down?",
+      title    = "Exploitation rate distributions by decade",
+      subtitle = "10-year bins working back from 2019. Diamond = decade mean. Across all populations.",
       x = NULL, y = "Exploitation rate"
     ) +
     base_theme +
     theme(legend.position = "none")
+  
   p6
  
-  # ── QUICK STATS ───────────────────────────────────────────────────────────────
-  cat("\n── Mean AK ER and total ER by period (across all populations) ──\n")
-  df |>
-    group_by(period) |>
-    summarise(
-      mean_ak_er     = mean(ak_er,     na.rm = TRUE),
-      mean_annual_er = mean(annual_er, na.rm = TRUE),
-      mean_ak_share  = mean(ak_er / annual_er, na.rm = TRUE)
-    ) |>
-    print()
-  
-  cat("\n── t-test: AK ER pre vs post ──\n")
-  t.test(ak_er ~ period, data = df) |> print()
-  
-  cat("\n── t-test: total ER pre vs post (leakage check) ──\n")
-  t.test(annual_er ~ period, data = df) |> print()
-  
   # ER went up while AK ER went down post 2012, so what ER is driving the increases? ======
   
   # If AK ER changed, did total ER change too?  
@@ -554,12 +571,12 @@ ggsave(
   
   head(ERs)
   
-  # What ER increased post 2012? ======
+  # What ER increased post 2019? ======
   df <- ERs |>
     mutate(
       annual_er = as.numeric(annual_er),
-      period    = factor(if_else(year < 2012, "Pre-2012", "Post-2012"),
-                         levels = c("Pre-2012", "Post-2012"))
+      period    = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                         levels = c("Pre-2019", "Post-2019"))
     ) |>
     pivot_longer(cols = c(ak_er, bc_er, wa_er, or_er),
                  names_to = "region", values_to = "er") |>
@@ -567,20 +584,6 @@ ggsave(
                            levels = c("AK", "BC", "WA", "OR")))
   
   region_colors <- c(AK = "#ba7517", BC = "#0f6e56", WA = "#185fa5", OR = "#a32d2d")
-  
-  intervention_year <- 2012
-  
-  base_theme <- theme_minimal(base_size = 11) +
-    theme(
-      panel.grid.minor   = element_blank(),
-      panel.grid.major.x = element_blank(),
-      strip.text         = element_text(face = "bold", size = 10),
-      plot.title         = element_text(face = "bold", size = 12),
-      plot.subtitle      = element_text(color = "grey40", size = 9),
-      axis.title         = element_text(size = 9),
-      legend.position    = "bottom",
-      legend.title       = element_blank()
-    )
   
   ivline <- geom_vline(xintercept = intervention_year, linetype = "dashed",
                        color = "grey30", linewidth = 0.6)
@@ -596,7 +599,7 @@ ggsave(
     geom_point(size = 2) +
     ivline +
     annotate("text", x = intervention_year + 0.3, y = Inf,
-             label = "2012", hjust = 0, vjust = 1.5, size = 2.8, color = "grey40") +
+             label = "2019", hjust = 0, vjust = 1.5, size = 2.8, color = "grey40") +
     scale_color_manual(values = region_colors) +
     scale_x_continuous(breaks = seq(min(ERs$year), max(ERs$year), by = 4)) +
     labs(
@@ -614,10 +617,10 @@ ggsave(
     ggplot(aes(x = period, y = er, fill = period)) +
     geom_boxplot(alpha = 0.75, outlier.size = 1, linewidth = 0.4) +
     geom_jitter(width = 0.15, size = 0.6, alpha = 0.3) +
-    scale_fill_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     facet_wrap(~region, scales = "free_y", nrow = 1) +
     labs(
-      title    = "ER distribution by region — pre vs post 2012",
+      title    = "ER distribution by region — pre vs post 2019",
       # subtitle = "Boxes shifting UP in BC, WA, or OR post-2012 = leakage from AK reduction",
       x = NULL, y = "Exploitation rate"
     ) +
@@ -633,7 +636,7 @@ ggsave(
     summarise(mean_er = mean(er, na.rm = TRUE), .groups = "drop") |>
     pivot_wider(names_from = period, values_from = mean_er) |>
     mutate(
-      delta     = `Post-2012` - `Pre-2012`,
+      delta     = `Post-2019` - `Pre-2019`,
       direction = if_else(delta > 0, "Increased", "Decreased"),
       label     = sprintf("%+.3f", delta)
     )
@@ -648,7 +651,7 @@ ggsave(
     scale_fill_manual(values = c("Increased" = "#a32d2d", "Decreased" = "#0f6e56")) +
     scale_x_continuous(expand = expansion(mult = 0.25)) +
     labs(
-      title    = "Change in mean ER post-2012 by region",
+      title    = "Change in mean ER post-2019 by region",
       subtitle = "Post-minus-pre mean across all populations and years",
       x = "Change in exploitation rate", y = NULL
     ) +
@@ -694,46 +697,68 @@ ggsave(
       x = NULL, y = "Exploitation rate"
     ) +
     base_theme
-  p5
+  p5 
+    
   
-  # ── PRINT ─────────────────────────────────────────────────────────────────────
-  print(p1)
-  print(p2)
-  print(p3)
-  print(p4)
-  print(p5)
+  # Plot P2 Box plot ER by decades =========
+  max_year <- max(ERs$year)
   
-  # ── COMBINED FIGURE ───────────────────────────────────────────────────────────
-  summary_fig <- (p4 | p3) / p2 +
-    plot_annotation(
-      title    = "OR Coastal Chinook — leakage analysis by fishery region",
-      subtitle = "AK ER dropped post-2012; which other region(s) increased?",
-      theme    = theme(
-        plot.title    = element_text(face = "bold", size = 13),
-        plot.subtitle = element_text(color = "grey40", size = 9)
-      )
-    )
+  # ── PREP WITH DECADES ─────────────────────────────────────────────────────────
+  df_decades <- ERs |>
+    mutate(
+      annual_er = as.numeric(annual_er),
+      decade = case_when(
+        year >= 2019               ~ paste0("2019–", max_year),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ "Pre-1979"
+      ),
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max_year)
+      ))
+    ) |>
+    pivot_longer(cols = c(ak_er, bc_er, wa_er, or_er),
+                 names_to = "region", values_to = "er") |>
+    mutate(region = factor(toupper(str_remove(region, "_er")),
+                           levels = c("AK", "BC", "WA", "OR")))
   
-  print(summary_fig)
+  # drop unused decade levels (e.g. Pre-1979 if data starts 1983)
+  df_decades <- df_decades |>
+    filter(!is.na(er)) |>
+    mutate(decade = droplevels(decade))
   
-  # ── SUMMARY TABLE ─────────────────────────────────────────────────────────────
-  cat("\n── Mean ER by region and period ──\n")
-  df |>
-    group_by(region, period) |>
-    summarise(mean_er = round(mean(er, na.rm = TRUE), 4), .groups = "drop") |>
-    pivot_wider(names_from = period, values_from = mean_er) |>
-    mutate(delta = round(`Post-2012` - `Pre-2012`, 4)) |>
-    arrange(delta) |>
-    print()
+  decade_levels <- levels(df_decades$decade)
+  decade_colors <- setNames(
+    colorRampPalette(c("#d4a84b", "#8b2020"))(length(decade_levels)),
+    decade_levels
+  )
+  
+  # ── P2 UPDATED: decadal boxplots faceted by region ───────────────────────────
+  p2_decades <- df_decades |>
+    ggplot(aes(x = decade, y = er, fill = decade)) +
+    geom_boxplot(alpha = 0.8, outlier.size = 0.8, linewidth = 0.4) +
+    geom_jitter(width = 0.18, size = 0.5, alpha = 0.3) +
+    stat_summary(fun = mean, geom = "point", shape = 18,
+                 size = 2.5, color = "white", show.legend = FALSE) +
+    scale_fill_manual(values = decade_colors) +
+    scale_x_discrete(guide = guide_axis(angle = 35)) +
+    facet_wrap(~region, scales = "free_y", nrow = 1) +
+    labs(
+      title    = "ER distribution by region — decadal comparison",
+      subtitle = "10-year bins working back from 2019. Diamond = decade mean.",
+      x = NULL, y = "Exploitation rate"
+    ) +
+    base_theme +
+    theme(legend.position = "none")
+  
+  p2_decades
   
   
-  ## Plot 2 and 3 population specific ==========
-  
-  library(tidyverse)
-  library(patchwork)
-  
-  # ── PREP ──────────────────────────────────────────────────────────────────────
-  df <- ERs |>
+  ## P2 & 3 population specific ==========
+ df <- ERs |>
     mutate(
       annual_er = as.numeric(annual_er),
       period    = factor(if_else(year < 2012, "Pre-2012", "Post-2012"),
@@ -745,19 +770,7 @@ ggsave(
                            levels = c("AK", "BC", "WA", "OR")))
   
   region_colors <- c(AK = "#ba7517", BC = "#0f6e56", WA = "#185fa5", OR = "#a32d2d")
-  
-  base_theme <- theme_minimal(base_size = 11) +
-    theme(
-      panel.grid.minor   = element_blank(),
-      panel.grid.major.x = element_blank(),
-      strip.text         = element_text(face = "bold", size = 9),
-      plot.title         = element_text(face = "bold", size = 12),
-      plot.subtitle      = element_text(color = "grey40", size = 9),
-      axis.title         = element_text(size = 9),
-      legend.position    = "bottom",
-      legend.title       = element_blank()
-    )
-  
+   
   # ── PLOT 2 (population-specific): Boxplots faceted by population AND region ───
   # Each population gets its own row; columns are regions
   # Leakage = non-AK boxes shift UP post-2012 within a population
@@ -814,40 +827,112 @@ ggsave(
     theme(legend.position = "none")
   
   print(p3_pop)
-  
+
+  ## P2 P3 population and decade specific =======
  
-  # ── SUMMARY TABLE ─────────────────────────────────────────────────────────────
-  cat("\n── Mean ER by region, population, and period ──\n")
-  delta_pop |>
-    select(population, region, `Pre-2012`, `Post-2012`, delta) |>
-    mutate(across(where(is.numeric), ~ round(.x, 4))) |>
-    arrange(population, delta) |>
-    print(n = Inf)
+ df_decades_pop <- ERs |>
+    mutate(
+      annual_er = as.numeric(annual_er),
+      decade = case_when(
+        year >= 2019               ~ paste0("2019–", max_year),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ "Pre-1979"
+      ),
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max_year)
+      ))
+    ) |>
+    pivot_longer(cols = c(ak_er, bc_er, wa_er, or_er),
+                 names_to = "region", values_to = "er") |>
+    mutate(region = factor(toupper(str_remove(region, "_er")),
+                           levels = c("AK", "BC", "WA", "OR"))) |>
+    filter(!is.na(er)) |>
+    mutate(decade = droplevels(decade))
+  
+  decade_levels <- levels(df_decades_pop$decade)
+  decade_colors <- setNames(
+    colorRampPalette(c("#d4a84b", "#8b2020"))(length(decade_levels)),
+    decade_levels
+  )
+  
+  region_colors <- c(AK = "#ba7517", BC = "#0f6e56", WA = "#185fa5", OR = "#a32d2d")
+  
+  # ── P2_POP: grid of population × region, x = decade ─────────────────────────
+  p2_pop_decades <- df_decades_pop |>
+    ggplot(aes(x = decade, y = er, fill = decade)) +
+    geom_boxplot(alpha = 0.8, outlier.size = 0.6, linewidth = 0.35) +
+    geom_jitter(width = 0.15, size = 0.4, alpha = 0.25) +
+    stat_summary(fun = mean, geom = "point", shape = 18,
+                 size = 2, color = "white", show.legend = FALSE) +
+    scale_fill_manual(values = decade_colors) +
+    scale_x_discrete(guide = guide_axis(angle = 40)) +
+    facet_grid(region ~ population, scales = "free_y") +
+    labs(
+      title    = "ER distribution by region and population — decadal comparison",
+      subtitle = "Rows = populations, columns = regions. Diamond = decade mean. Rising trend in BC/WA/OR = leakage.",
+      x = NULL, y = "Exploitation rate"
+    ) +
+    base_theme +
+    theme(
+      legend.position = "none",
+      strip.text.y    = element_text(angle = 0, hjust = 0),
+      axis.text.x     = element_text(size = 7)
+    )
+  
+  print(p2_pop_decades)
+  
+  # ── P3_POP: delta between consecutive decades, faceted by population ──────────
+  # Compute mean ER per population × region × decade, then diff between adjacent decades
+  
+  delta_pop_decades <- df_decades_pop |>
+    group_by(population, region, decade) |>
+    summarise(mean_er = mean(er, na.rm = TRUE), .groups = "drop") |>
+    arrange(population, region, decade) |>
+    group_by(population, region) |>
+    mutate(
+      delta     = mean_er - lag(mean_er),
+      direction = if_else(delta > 0, "Increased", "Decreased"),
+      label     = sprintf("%+.3f", delta),
+      period    = paste0(lag(as.character(decade)), " → ", as.character(decade))
+    ) |>
+    filter(!is.na(delta))
+  
+  p3_pop_decades <- delta_pop_decades |>
+    ggplot(aes(x = delta, y = fct_reorder(region, delta), fill = direction)) +
+    geom_col(width = 0.6, alpha = 0.85) +
+    geom_text(aes(label = label,
+                  hjust = if_else(delta > 0, -0.1, 1.1)),
+              size = 2.3, fontface = "bold") +
+    geom_vline(xintercept = 0, linewidth = 0.5, color = "grey30") +
+    scale_fill_manual(values = c("Increased" = "#a32d2d", "Decreased" = "#0f6e56")) +
+    scale_x_continuous(expand = expansion(mult = 0.35)) +
+    facet_grid(population ~ period, scales = "free_x") +
+    labs(
+      title    = "Decadal change in mean ER by region and population",
+      subtitle = "Change between consecutive decades. Red = increased, green = decreased.",
+      x = "Change in exploitation rate", y = NULL
+    ) +
+    base_theme +
+    theme(
+      legend.position = "none",
+      strip.text.x    = element_text(size = 7, angle = 20, hjust = 1),
+      strip.text.y    = element_text(angle = 0, hjust = 0, size = 8)
+    )
+  
+  print(p3_pop_decades)
+   
   
   # Look at ERs through time, total and AK ============
- 
-  
-  # ── PREP ──────────────────────────────────────────────────────────────────────
   df <- ERs |>
     mutate(
       annual_er = as.numeric(annual_er),
-      period    = factor(if_else(year < 2012, "Pre-2012", "Post-2012"),
-                         levels = c("Pre-2012", "Post-2012"))
+      period    = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                         levels = c("Pre-2019", "Post-2019"))
     )
-  
-  base_theme <- theme_minimal(base_size = 11) +
-    theme(
-      panel.grid.minor   = element_blank(),
-      panel.grid.major.x = element_blank(),
-      strip.text         = element_text(face = "bold", size = 9),
-      plot.title         = element_text(face = "bold", size = 12),
-      plot.subtitle      = element_text(color = "grey40", size = 9),
-      axis.title         = element_text(size = 9),
-      legend.position    = "bottom",
-      legend.title       = element_blank()
-    )
-  
-  intervention_year <- 2012
   
   # ── PLOT 1: Total annual ER through time, faceted by population ───────────────
   p_total <- df |>
@@ -855,13 +940,13 @@ ggsave(
     geom_col(width = 0.8, alpha = 0.85) +
     geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
                color = "grey30", linewidth = 0.6) +
-    scale_fill_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
     scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
     facet_wrap(~population, scales = "free_y") +
     labs(
       title    = "Total annual exploitation rate by population",
-      subtitle = "Dashed line = 2012 AK catch reduction",
+      subtitle = "Dashed line = 2019 AK catch reduction",
       x = NULL, y = "Total annual ER"
     ) +
     base_theme
@@ -872,19 +957,38 @@ ggsave(
     geom_col(width = 0.8, alpha = 0.85) +
     geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
                color = "grey30", linewidth = 0.6) +
-    scale_fill_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
     scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
     facet_wrap(~population, scales = "free_y") +
     labs(
       title    = "AK exploitation rate by population",
-      subtitle = "Dashed line = 2012 AK catch reduction",
+      subtitle = "Dashed line = 2019 AK catch reduction",
       x = NULL, y = "AK ER"
+    ) +
+    base_theme
+ 
+  p_er_individ <- df |>
+    select(-annual_er) |>
+    gather(c(3:6), key = "fishing_ER_ID", value = "value") |>
+    ggplot(aes(x = year, y = value, fill = period)) +
+    geom_col(width = 0.8, alpha = 0.85) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+    facet_grid(population~fishing_ER_ID, scales = "free_y") +
+    labs(
+      title    = "Exploitation rate by population and region",
+      subtitle = "Dashed line = 2019 renegotiation",
+      x = NULL, y = "ER"
     ) +
     base_theme
   
   print(p_total)
   print(p_ak)
+  print(p_er_individ)
   
    # look at 12% differences=========
  
@@ -892,117 +996,332 @@ ggsave(
   df <- ERs |>
     mutate(
       annual_er = as.numeric(annual_er),
-      period    = factor(if_else(year < 2012, "Pre-2012", "Post-2012"),
-                         levels = c("Pre-2012", "Post-2012"))
+      period    = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                         levels = c("Pre-2019", "Post-2019"))
     )
-  
-  base_theme <- theme_minimal(base_size = 11) +
-    theme(
-      panel.grid.minor   = element_blank(),
-      panel.grid.major.x = element_blank(),
-      strip.text         = element_text(face = "bold", size = 9),
-      plot.title         = element_text(face = "bold", size = 12),
-      plot.subtitle      = element_text(color = "grey40", size = 9),
-      axis.title         = element_text(size = 9),
-      legend.position    = "bottom",
-      legend.title       = element_blank()
-    )
-  
-  intervention_year <- 2012
-  
+    
   # ── REFERENCE LINES — computed per population ─────────────────────────────────
   # These are passed to geom_segment so lines only span the relevant period
+ 
+  # ── REFERENCE LINES — based only on the decade immediately before 2019 ────────
+  # Pre mean = mean of 2009–2018 only (not full timeseries)
+  # Target   = that decade mean * 0.88
   
   make_ref_lines <- function(data, er_col) {
-    data |>
-      group_by(population, period) |>
-      summarise(mean_er = mean({{ er_col }}, na.rm = TRUE), .groups = "drop") |>
-      pivot_wider(names_from = period, values_from = mean_er) |>
+    
+    pre_decade <- data |>
+      filter(year >= 2009, year <= 2018) |>
+      group_by(population) |>
+      summarise(pre_mean = mean({{ er_col }}, na.rm = TRUE), .groups = "drop")
+    
+    post_mean <- data |>
+      filter(year >= 2019) |>
+      group_by(population) |>
+      summarise(post_mean = mean({{ er_col }}, na.rm = TRUE), .groups = "drop")
+    
+    pre_decade |>
+      left_join(post_mean, by = "population") |>
       mutate(
-        target_12pct = `Pre-2012` * (1 - 0.12),  # what a 12% reduction would look like
-        x_pre_start  = min(df$year),
-        x_pre_end    = intervention_year - 1,
-        x_post_start = intervention_year,
-        x_post_end   = max(df$year)
+        target_12pct = pre_mean * (1 - 0.12),
+        x_pre_start  = 2009,
+        x_pre_end    = 2018,
+        x_post_start = 2019,
+        x_post_end   = max(data$year)
       )
   }
   
   ref_total <- make_ref_lines(df, annual_er)
   ref_ak    <- make_ref_lines(df, ak_er)
   
-  # ── PLOT FUNCTION ─────────────────────────────────────────────────────────────
-  make_barplot <- function(data, er_col, ref_lines, y_label, plot_title) {
+  # ── PLOTS ─────────────────────────────────────────────────────────────────────
+  p_total <- ggplot() +
+    geom_col(data = df,
+             aes(x = year, y = annual_er, fill = period),
+             width = 0.8, alpha = 0.75) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    # pre-2019 mean (2009-2018 only)
+    geom_segment(data = ref_total,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1, linetype = "solid") +
+    # post-2019 mean
+    geom_segment(data = ref_total,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1, linetype = "solid") +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "Total annual exploitation rate by population",
+      subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean",
+      x = NULL, y = "Total annual ER"
+    ) +
+    base_theme
+  
+  p_total
+  
+  p_ak <- ggplot() +
+    geom_col(data = df,
+             aes(x = year, y = ak_er, fill = period),
+             width = 0.8, alpha = 0.75) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    # pre-2019 mean (2009-2018 only)
+    geom_segment(data = ref_ak,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1, linetype = "solid") +
+    # post-2019 mean
+    geom_segment(data = ref_ak,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1, linetype = "solid") +
+    # 12% reduction target off 2009-2018 mean
+    geom_segment(data = ref_ak,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = target_12pct, yend = target_12pct),
+                 color = "#185fa5", linewidth = 1, linetype = "solid") +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
+    scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "AK exploitation rate by population",
+      subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean  |  Blue = 12% reduction target",
+      x = NULL, y = "AK ER"
+    ) +
+    base_theme
+  
+  p_ak
+   
+  # Look at total run size, total catch, and AK Catch. =====
+  # what is the change in total catch through time, and AKs contribution to that, has AK total catch decreased? and what is a 12% total catch decrease look like?
+ ak_cols <- c("seak_t", "seak_s", "seak_n", "ak_term_t", "ak_term_n", "ak_term_s")
+  
+  catch_df <- data |>
+    mutate(
+      across(all_of(ak_cols), ~ as.numeric(.x) / 100),
+      across(c(total_run, esc_tot, mar.catch, term.catch), as.numeric),
+      ak_er        = rowSums(across(all_of(ak_cols)), na.rm = TRUE),
+      total_catch  = mar.catch + term.catch,
+      ak_catch     = ak_er * total_run,
+      non_ak_catch = total_catch - ak_catch,
+      decade = case_when(
+        year >= 2019               ~ paste0("2019–", max(year)),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ "Pre-1979"
+      ),
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max(year))
+      )),
+      period = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                      levels = c("Pre-2019", "Post-2019"))
+    ) |>
+    mutate(decade = droplevels(decade))
+  
+  intervention_year <- 2019
+  
+  decade_levels <- levels(catch_df$decade)
+  decade_colors <- setNames(
+    colorRampPalette(c("#d4a84b", "#8b2020"))(length(decade_levels)),
+    decade_levels
+  )
+  
+   
+  x_breaks <- seq(min(catch_df$year), max(catch_df$year), by = 8)
+  
+  # ── REFERENCE LINES per population — 2009-2018 baseline ──────────────────────
+  make_catch_refs <- function(data, catch_col) {
+    pre <- data |>
+      filter(year >= 2009, year <= 2018) |>
+      group_by(population) |>
+      summarise(pre_mean = mean({{ catch_col }}, na.rm = TRUE), .groups = "drop")
     
-    ggplot() +
-      # bars
-      geom_col(data = data,
-               aes(x = year, y = {{ er_col }}, fill = period),
-               width = 0.8, alpha = 0.75) +
-      # intervention line
-      geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
-                 color = "grey30", linewidth = 0.6) +
-      # pre-2012 mean line
-      geom_segment(data = ref_lines,
-                   aes(x = x_pre_start, xend = x_pre_end,
-                       y = `Pre-2012`, yend = `Pre-2012`),
-                   color = "#ba7517", linewidth = 1, linetype = "solid") +
-      # post-2012 mean line
-      geom_segment(data = ref_lines,
-                   aes(x = x_post_start, xend = x_post_end,
-                       y = `Post-2012`, yend = `Post-2012`),
-                   color = "#a32d2d", linewidth = 1, linetype = "solid") +
-      # 12% reduction target line
-      geom_segment(data = ref_lines,
-                   aes(x = x_post_start, xend = x_post_end,
-                       y = target_12pct, yend = target_12pct),
-                   color = "#185fa5", linewidth = 0.9, linetype = "dotdash") +
-      scale_fill_manual(values = c("Pre-2012" = "#ba7517", "Post-2012" = "#a32d2d")) +
-      scale_x_continuous(breaks = seq(min(data$year), max(data$year), by = 8)) +
-      scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
-      facet_wrap(~population, scales = "free_y") +
-      labs(
-        title    = plot_title,
-        subtitle = "Amber line = pre-2012 mean  |  Red line = post-2012 mean |  Blue dotdash = 12% reduction target",
-        x = NULL, y = y_label
-      ) +
-      base_theme
+    post <- data |>
+      filter(year >= 2019) |>
+      group_by(population) |>
+      summarise(post_mean = mean({{ catch_col }}, na.rm = TRUE), .groups = "drop")
+    
+    pre |>
+      left_join(post, by = "population") |>
+      mutate(
+        target_12pct = pre_mean * 0.88,
+        x_pre_start  = 2009,
+        x_pre_end    = 2018,
+        x_post_start = intervention_year,
+        x_post_end   = max(data$year)
+      )
   }
   
-  # ── PLOTS ─────────────────────────────────────────────────────────────────────
-  p_total <- make_barplot(df, annual_er, ref_total,
-                          y_label    = "Total annual ER",
-                          plot_title = "Total annual exploitation rate by population")
+  ref_total <- make_catch_refs(catch_df, total_catch)
+  ref_ak    <- make_catch_refs(catch_df, ak_catch)
+  ref_run   <- make_catch_refs(catch_df, total_run)
   
-  p_ak <- make_barplot(df, ak_er, ref_ak,
-                       y_label    = "AK ER",
-                       plot_title = "AK exploitation rate by population")
+  # ── PLOT 1: Total run size by population ──────────────────────────────────────
+  p_run <- ggplot() +
+    geom_col(data = catch_df,
+             aes(x = year, y = total_run / 1000, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_run,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean / 1000, yend = pre_mean / 1000),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_run,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean / 1000, yend = post_mean / 1000),
+                 color = "#a32d2d", linewidth = 1) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::comma) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "Total run size by population",
+      subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean",
+      x = NULL, y = "Total run (thousands of fish)"
+    ) +
+    base_theme
+  p_run
   
-  print(p_total)
-  print(p_ak)
+  # ── PLOT 2: Total catch stacked AK vs non-AK by population ───────────────────
+  catch_long <- catch_df |>
+    select(year, population, period, ak_catch, non_ak_catch) |>
+    pivot_longer(cols = c(ak_catch, non_ak_catch),
+                 names_to = "fishery", values_to = "catch") |>
+    mutate(fishery = recode(fishery,
+                            "ak_catch"     = "AK catch",
+                            "non_ak_catch" = "Non-AK catch"))
   
-  # ggsave("total_er_by_population.png", p_total, width = 14, height = 10, dpi = 300)
-  # ggsave("ak_er_by_population.png",    p_ak,    width = 14, height = 10, dpi = 300)
+  p_catch_stack <- ggplot() +
+    geom_col(data = catch_long,
+             aes(x = year, y = catch / 1000, fill = fishery),
+             width = 0.8, alpha = 0.85) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_total,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean / 1000, yend = pre_mean / 1000),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_total,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean / 1000, yend = post_mean / 1000),
+                 color = "#a32d2d", linewidth = 1) +
+    # geom_segment(data = ref_total,
+    #              aes(x = x_post_start, xend = x_post_end,
+    #                  y = target_12pct / 1000, yend = target_12pct / 1000),
+    #              color = "#185fa5", linewidth = 1, linetype = "dashed") +
+    scale_fill_manual(values = c("AK catch" = "#ba7517", "Non-AK catch" = "#8fb8d4")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::comma) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "Total catch — AK vs non-AK by population",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean ",
+      x = NULL, y = "Catch (thousands of fish)"
+    ) +
+    base_theme
+  p_catch_stack
   
-  # ── SUMMARY TABLE ─────────────────────────────────────────────────────────────
-  cat("\n── Total ER: pre mean, post mean, 12% reduction target ──\n")
-  ref_total |>
-    mutate(across(where(is.numeric) & !starts_with("x_"), ~ round(.x, 4))) |>
-    select(population, `Pre-2012`, `Post-2012`, target_12pct) |>
-    print()
+  # ── PLOT 3: AK catch only by population ───────────────────────────────────────
+  p_ak_catch <- ggplot() +
+    geom_col(data = catch_df,
+             aes(x = year, y = ak_catch / 1000, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_ak,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean / 1000, yend = pre_mean / 1000),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_ak,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean / 1000, yend = post_mean / 1000),
+                 color = "#a32d2d", linewidth = 1) +
+    geom_segment(data = ref_ak,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = target_12pct / 1000, yend = target_12pct / 1000),
+                 color = "#185fa5", linewidth = 1, linetype = "dashed") +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::comma) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "AK catch of OR Chinook by population",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean  |  Blue dashed = 12% reduction target",
+      x = NULL, y = "AK catch (thousands of fish)"
+    ) +
+    base_theme
   
-  cat("\n── AK ER: pre mean, post mean, 12% reduction target ──\n")
-  ref_ak |>
-    mutate(across(where(is.numeric) & !starts_with("x_"), ~ round(.x, 4))) |>
-    select(population, `Pre-2012`, `Post-2012`, target_12pct) |>
-    print()
+  p_ak_catch
   
+  # ── PLOT 4: AK share of total catch by population ─────────────────────────────
+  catch_df <- catch_df |>
+    mutate(ak_share_catch = ak_catch / total_catch)
   
+  ref_share <- make_catch_refs(catch_df, ak_share_catch)
   
+  p_ak_share <- ggplot() +
+    geom_col(data = catch_df,
+             aes(x = year, y = ak_share_catch, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_share,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_share,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    facet_wrap(~population, scales = "free_y") +
+    labs(
+      title    = "AK share of total catch by population",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      x = NULL, y = "AK catch / total catch"
+    ) +
+    base_theme
   
-  
-  
-  
-  
+  p_ak_share
+  # ── PLOT 5: Decadal boxplots — AK and total catch by population ───────────────
+  p_decade_box <- catch_df |>
+    pivot_longer(cols = c(total_catch, ak_catch),
+                 names_to = "type", values_to = "catch") |>
+    mutate(type = recode(type,
+                         "total_catch" = "Total catch",
+                         "ak_catch"    = "AK catch")) |>
+    ggplot(aes(x = decade, y = catch / 1000, fill = decade)) +
+    geom_boxplot(alpha = 0.8, outlier.size = 0.7, linewidth = 0.35) +
+    geom_jitter(width = 0.15, size = 0.5, alpha = 0.25) +
+    stat_summary(fun = mean, geom = "point", shape = 18,
+                 size = 2.5, color = "white", show.legend = FALSE) +
+    scale_fill_manual(values = decade_colors) +
+    scale_x_discrete(guide = guide_axis(angle = 35)) +
+    scale_y_continuous(labels = scales::comma) +
+    facet_grid(population ~ type, scales = "free_y") +
+    labs(
+      title    = "Catch distributions by decade and population",
+      subtitle = "Diamond = decade mean. Has catch trended down within each stock?",
+      x = NULL, y = "Catch (thousands of fish)"
+    ) +
+    base_theme +
+    theme(
+      legend.position = "none",
+      strip.text.y    = element_text(angle = 0, hjust = 0)
+    )
+  p_decade_box
+ 
   # look at ER and spawning abundances ===========
   data %>% 
     dplyr::select(year, population, esc_tot) %>%
