@@ -19,6 +19,18 @@ custom_pal <- c(
   "Alaska"                 = "#4A7A50"
 )
 
+base_theme <- theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank(),
+    strip.text         = element_text(face = "bold", size = 12),
+    plot.title         = element_text(face = "bold", size = 14),
+    plot.subtitle      = element_text(color = "grey40", size = 12),
+    axis.title         = element_text(size = 12),
+    legend.position    = "bottom",
+    legend.title       = element_blank()
+  )
+
 # load ====== 
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
   filter(region %in% c("OC","ORC"),
@@ -364,17 +376,6 @@ ggsave(
     unique(df$population)
   )
   
-  base_theme <- theme_minimal(base_size = 11) +
-    theme(
-      panel.grid.minor   = element_blank(),
-      panel.grid.major.x = element_blank(),
-      strip.text         = element_text(face = "bold", size = 9),
-      plot.title         = element_text(face = "bold", size = 12),
-      plot.subtitle      = element_text(color = "grey40", size = 9),
-      axis.title         = element_text(size = 9),
-      legend.position    = "bottom",
-      legend.title       = element_blank()
-    )
   
   intervention_vline <- geom_vline(
     xintercept = intervention_year, linetype = "dashed",
@@ -1059,6 +1060,7 @@ ggsave(
       subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean",
       x = NULL, y = "Total annual ER"
     ) +
+    # theme_bw()
     base_theme
   
   p_total
@@ -1080,24 +1082,25 @@ ggsave(
                      y = post_mean, yend = post_mean),
                  color = "#a32d2d", linewidth = 1, linetype = "solid") +
     # 12% reduction target off 2009-2018 mean
-    geom_segment(data = ref_ak,
-                 aes(x = x_post_start, xend = x_post_end,
-                     y = target_12pct, yend = target_12pct),
-                 color = "#185fa5", linewidth = 1, linetype = "solid") +
+    # geom_segment(data = ref_ak,
+    #              aes(x = x_post_start, xend = x_post_end,
+    #                  y = target_12pct, yend = target_12pct),
+    #              color = "#185fa5", linewidth = 1, linetype = "solid") +
     scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     scale_x_continuous(breaks = seq(min(df$year), max(df$year), by = 8)) +
     scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
     facet_wrap(~population, scales = "free_y") +
     labs(
       title    = "AK exploitation rate by population",
-      subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean  |  Blue = 12% reduction target",
+      subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean",
       x = NULL, y = "AK ER"
     ) +
     base_theme
   
   p_ak
-   
-  # Look at total run size, total catch, and AK Catch. =====
+  
+  # Best Plots by Stock ============
+  # Look at total run size, total catch, and AK Catch.  
   # what is the change in total catch through time, and AKs contribution to that, has AK total catch decreased? and what is a 12% total catch decrease look like?
  ak_cols <- c("seak_t", "seak_s", "seak_n", "ak_term_t", "ak_term_n", "ak_term_s")
   
@@ -1163,6 +1166,7 @@ ggsave(
   ref_total <- make_catch_refs(catch_df, total_catch)
   ref_ak    <- make_catch_refs(catch_df, ak_catch)
   ref_run   <- make_catch_refs(catch_df, total_run)
+  ref_er   <- make_catch_refs(catch_df, ak_er)  
   
   # ── PLOT 1: Total run size by population ──────────────────────────────────────
   p_run <- ggplot() +
@@ -1245,22 +1249,23 @@ ggsave(
                  aes(x = x_post_start, xend = x_post_end,
                      y = post_mean / 1000, yend = post_mean / 1000),
                  color = "#a32d2d", linewidth = 1) +
-    geom_segment(data = ref_ak,
-                 aes(x = x_post_start, xend = x_post_end,
-                     y = target_12pct / 1000, yend = target_12pct / 1000),
-                 color = "#185fa5", linewidth = 1, linetype = "dashed") +
+    # geom_segment(data = ref_ak,
+    #              aes(x = x_post_start, xend = x_post_end,
+    #                  y = target_12pct / 1000, yend = target_12pct / 1000),
+    #              color = "#185fa5", linewidth = 1, linetype = "dashed") +
     scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
     scale_x_continuous(breaks = x_breaks) +
     scale_y_continuous(labels = scales::comma) +
     facet_wrap(~population, scales = "free_y") +
     labs(
       title    = "AK catch of OR Chinook by population",
-      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean  |  Blue dashed = 12% reduction target",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
       x = NULL, y = "AK catch (thousands of fish)"
-    ) +
+    ) + #theme_bw()
     base_theme
   
   p_ak_catch
+  ggsave("output/plots/OR_AK_Chinook_Catch_P1.png",width = 6, height = 4)
   
   # ── PLOT 4: AK share of total catch by population ─────────────────────────────
   catch_df <- catch_df |>
@@ -1294,55 +1299,411 @@ ggsave(
     base_theme
   
   p_ak_share
-  # ── PLOT 5: Decadal boxplots — AK and total catch by population ───────────────
-  p_decade_box <- catch_df |>
-    pivot_longer(cols = c(total_catch, ak_catch),
-                 names_to = "type", values_to = "catch") |>
-    mutate(type = recode(type,
-                         "total_catch" = "Total catch",
-                         "ak_catch"    = "AK catch")) |>
-    ggplot(aes(x = decade, y = catch / 1000, fill = decade)) +
-    geom_boxplot(alpha = 0.8, outlier.size = 0.7, linewidth = 0.35) +
-    geom_jitter(width = 0.15, size = 0.5, alpha = 0.25) +
-    stat_summary(fun = mean, geom = "point", shape = 18,
-                 size = 2.5, color = "white", show.legend = FALSE) +
-    scale_fill_manual(values = decade_colors) +
-    scale_x_discrete(guide = guide_axis(angle = 35)) +
-    scale_y_continuous(labels = scales::comma) +
-    facet_grid(population ~ type, scales = "free_y") +
+  ggsave("output/plots/OR_AK_Chinook_Catch_P2.png",width = 6, height = 4)
+  
+  
+  ## AK ER =====
+  p_ak_ER <- ggplot() +
+    geom_col(data = catch_df,
+             aes(x = year, y = ak_er, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_er,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_er,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    facet_wrap(~population, scales = "free_y") +
     labs(
-      title    = "Catch distributions by decade and population",
-      subtitle = "Diamond = decade mean. Has catch trended down within each stock?",
-      x = NULL, y = "Catch (thousands of fish)"
+      title    = "AK Exploitation Rate by Population",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      x = NULL, y = "AK catch / total run size"
     ) +
-    base_theme +
-    theme(
-      legend.position = "none",
-      strip.text.y    = element_text(angle = 0, hjust = 0)
-    )
-  p_decade_box
+    base_theme
+  
+  p_ak_ER
+  ggsave("output/plots/OR_AK_Chinook_Catch_P3.png",width = 6, height = 4)
+  
+  # Group Oregon Coast ==== 
+  ## AK Catch and ER for OR Coast ==========
+  # Step 1: calculate FM numbers from percents for OR Coast stocks only
+  total_run_df <- data %>%
+    dplyr::select(year, population, region, total_run) %>%
+    dplyr::mutate(total_run = as.numeric(total_run))
+  
+  catch_distributions <- data %>%
+    dplyr::select(c(1:39)) %>%
+    gather(4:ncol(.), key = "fishery_region", value = "percent_mort") %>%
+    filter(!fishery_region %in% c(
+      "stray", "aabm_tot", "nbc_is_tot", "sbc_is_tot",
+      "US_is_tot", "esc_pct", "er", "term_tot"
+    )) %>%
+    dplyr::mutate(percent_mort = as.numeric(percent_mort) / 100)
+  
+  # Step 2: filter to OR Coast stocks only, calculate mortality numbers
+  OC_fish <- catch_distributions %>%
+    left_join(total_run_df) %>%
+    filter(!is.na(percent_mort),
+           region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%  # OR Coast regions only
+    dplyr::mutate(
+      mortality_numbers = total_run * percent_mort,
+      broad_region = case_when(
+        str_detect(fishery_region, "^seak")    ~ "Alaska",
+        str_detect(fishery_region, "^ak_term") ~ "Alaska",
+        str_detect(fishery_region, "^US_term") ~ "Oregon Coast\nIn-River",
+        str_detect(fishery_region, "^can_term") ~ "British Columbia",
+        str_detect(fishery_region, "^wcvi")    ~ "British Columbia",
+        str_detect(fishery_region, "^nbc")     ~ "British Columbia",
+        str_detect(fishery_region, "^sbc")     ~ "British Columbia",
+        str_detect(fishery_region, "^sfalc")   ~ "Oregon Coast",
+        fishery_region == "nfalc_s"            ~ "Washington",
+        fishery_region == "nfalc_t"            ~ "Washington",
+        fishery_region == "PS_n"               ~ "Washington",
+        fishery_region == "PS_s"               ~ "Washington",
+        fishery_region == "wac_n"              ~ "Washington",
+        TRUE                                   ~ "Check"
+      )
+    ) %>%
+    filter(broad_region != "Check")
+  
+  # Step 3: sum total run and FM numbers across ALL OR Coast stocks by year
+  OC_annual <- OC_fish %>%
+    # get total run per population per year (avoid double counting)
+    # distinct(population, year, total_run) %>%
+    group_by(year) %>%
+    summarise(total_run = sum(total_run, na.rm = TRUE), .groups = "drop") %>%
+    # join total FM numbers
+    left_join(
+      OC_fish %>%
+        group_by(year) %>%
+        summarise(total_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    # join AK FM numbers specifically
+    left_join(
+      OC_fish %>%
+        filter(broad_region == "Alaska") %>%
+        group_by(year) %>%
+        summarise(ak_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    # join escapement totals from original data
+    left_join(
+      data %>%
+        filter(region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%
+        group_by(year) %>%
+        summarise(esc_tot = sum(as.numeric(esc_tot), na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    mutate(
+      # recalculate exploitation rates from summed numbers
+      total_catch  = total_FM_numbers,
+      ak_catch     = ak_FM_numbers,
+      non_ak_catch = total_catch - ak_catch,
+      ak_er        = ak_catch / total_run,
+      ak_share_catch = ak_catch / total_catch,
+      period = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                      levels = c("Pre-2019", "Post-2019")),
+      decade = case_when(
+        year >= 2019               ~ paste0("2019–", max(year)),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ "Pre-1979"
+      ),
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max(year))
+      ))
+    ) %>%
+    mutate(decade = droplevels(decade)) %>%
+    filter(!year < 2000)
+  
+  # Step 4: reference lines
+  intervention_year <- 2019
+  x_breaks <- seq(min(OC_annual$year), max(OC_annual$year), by = 8)
+  
+  make_catch_refs <- function(data, catch_col) {
+    pre <- data %>%
+      filter(year >= 2009, year <= 2018) %>%
+      summarise(pre_mean = mean({{ catch_col }}, na.rm = TRUE), .groups = "drop")
+    
+    post <- data %>%
+      filter(year >= 2019) %>%
+      summarise(post_mean = mean({{ catch_col }}, na.rm = TRUE), .groups = "drop")
+    
+    cbind(pre, post) %>%
+      mutate(
+        target_12pct = pre_mean * 0.88,
+        x_pre_start  = 2009,
+        x_pre_end    = 2018,
+        x_post_start = intervention_year,
+        x_post_end   = max(data$year)
+      )
+  }
+  
+  ref_ak    <- make_catch_refs(OC_annual, ak_catch)
+  ref_run   <- make_catch_refs(OC_annual, total_run)
+  ref_er    <- make_catch_refs(OC_annual, ak_er)
+  ref_share <- make_catch_refs(OC_annual, ak_share_catch)
+  
+  # Step 5: plots
+  # base_theme <- theme_minimal(base_family = "dm_sans") +
+  #   theme(
+  #     plot.title       = element_text(face = "bold", size = 12),
+  #     plot.subtitle    = element_text(size = 9, color = "grey50"),
+  #     panel.grid.minor = element_blank(),
+  #     panel.grid.major.x = element_blank(),
+  #     axis.text.x      = element_text(angle = 45, hjust = 1),
+  #     legend.position  = "bottom"
+  #   )
+  # 
+  # Plot 1: AK catch in numbers
+  p_ak_catch <- ggplot() +
+    geom_col(data = OC_annual,
+             aes(x = year, y = ak_catch / 1000, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_ak,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean / 1000, yend = pre_mean / 1000),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_ak,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean / 1000, yend = post_mean / 1000),
+                 color = "#a32d2d", linewidth = 1) +
+    # geom_segment(data = ref_ak,
+    #              aes(x = x_pre_start, xend = x_post_end,
+    #                  y = target_12pct / 1000, yend = target_12pct / 1000),
+    #              color = "steelblue", linetype = "dashed", linewidth = 0.8) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(
+      title    = "AK catch of OR Coast Chinook (all stocks combined)",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean ",
+      x = NULL, y = "AK catch (thousands of fish)"
+    ) +
+    base_theme
+  
+  p_ak_catch
+  ggsave("output/plots/OR_AK_Chinook_Catch_P1_Total.png", width = 6, height = 4)
+  
+  # Plot 2: AK share of total catch
+  p_ak_share <- ggplot() +
+    geom_col(data = OC_annual,
+             aes(x = year, y = ak_share_catch, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_share,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_share,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(
+      title    = "AK share of total catch — OR Coast Chinook (all stocks combined)",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      x = NULL, y = "AK catch / total catch"
+    ) +
+    base_theme
+  
+  p_ak_share
+  ggsave("output/plots/OR_AK_Chinook_Catch_P2_Total.png", width = 6, height = 4)
+  
+  # Plot 3: AK exploitation rate
+  p_ak_ER <- ggplot() +
+    geom_col(data = OC_annual,
+             aes(x = year, y = ak_er, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_er,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#ba7517", linewidth = 1) +
+    geom_segment(data = ref_er,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#a32d2d", linewidth = 1) +
+    scale_fill_manual(values = c("Pre-2019" = "#ba7517", "Post-2019" = "#a32d2d")) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(
+      title    = "AK Exploitation Rate — OR Coast Chinook (all stocks combined)",
+      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      x = NULL, y = "AK catch / total run size"
+    ) +
+    base_theme
+  
+  p_ak_ER
+  ggsave("output/plots/OR_AK_Chinook_Catch_P3_Total.png", width = 6, height = 4)
+  
+  ## BC Catch and ER for OR Coast ========== =========
  
-  # look at ER and spawning abundances ===========
-  data %>% 
-    dplyr::select(year, population, esc_tot) %>%
-    right_join(OC_plot_df) %>%
-    filter(broad_region == "Alaska") %>%
-    ggplot( ) + 
-    geom_line(aes(x=year, y = mort_broad_region)) + 
-    geom_point(aes(x=year, y = mort_broad_region)) + 
-    geom_bar(aes(x=year, y = as.numeric(esc_tot)), stat = "identity") + 
-    facet_wrap(~population, scales= "free")+
-    labs(x="Year", y ="Harvest Numbers", title = "Alaskan Harvest of OR Chinook salmon") 
+  # Step 3: sum total run and FM numbers across ALL OR Coast stocks by year
+  # but now tracking BC catch instead of AK
+  OC_annual_BC <- OC_fish %>%
+    # get total run per population per year (avoid double counting)
+    distinct(population, year, total_run) %>%
+    group_by(year) %>%
+    summarise(total_run = sum(total_run, na.rm = TRUE), .groups = "drop") %>%
+    # join total FM numbers
+    left_join(
+      OC_fish %>%
+        group_by(year) %>%
+        summarise(total_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    # join BC FM numbers specifically
+    left_join(
+      OC_fish %>%
+        filter(broad_region == "British Columbia") %>%
+        group_by(year) %>%
+        summarise(bc_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    # join escapement totals from original data
+    left_join(
+      data %>%
+        filter(region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%
+        group_by(year) %>%
+        summarise(esc_tot = sum(as.numeric(esc_tot), na.rm = TRUE),
+                  .groups = "drop")
+    ) %>%
+    mutate(
+      # replace NAs with 0 for years with no BC catch
+      bc_FM_numbers = replace_na(bc_FM_numbers, 0),
+      
+      # recalculate exploitation rates from summed numbers
+      total_catch    = total_FM_numbers,
+      bc_catch       = bc_FM_numbers,
+      non_bc_catch   = total_catch - bc_catch,
+      bc_er          = bc_catch / total_run,
+      bc_share_catch = bc_catch / total_catch,
+      
+      period = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
+                      levels = c("Pre-2019", "Post-2019")),
+      decade = case_when(
+        year >= 2019               ~ paste0("2019–", max(year)),
+        year >= 2009 & year < 2019 ~ "2009–2018",
+        year >= 1999 & year < 2009 ~ "1999–2008",
+        year >= 1989 & year < 1999 ~ "1989–1998",
+        year >= 1979 & year < 1989 ~ "1979–1988",
+        TRUE                       ~ "Pre-1979"
+      ),
+      decade = factor(decade, levels = c(
+        "Pre-1979", "1979–1988", "1989–1998",
+        "1999–2008", "2009–2018", paste0("2019–", max(year))
+      ))
+    ) %>%
+    mutate(decade = droplevels(decade)) %>% 
+    filter(!year<2000)
   
+  # Step 4: reference lines
+  ref_bc       <- make_catch_refs(OC_annual_BC, bc_catch)
+  ref_bc_er    <- make_catch_refs(OC_annual_BC, bc_er)
+  ref_bc_share <- make_catch_refs(OC_annual_BC, bc_share_catch)
   
+  # BC color palette — greens
+  bc_pal <- c("Pre-2019" = "#4A7A50", "Post-2019" = "#2A4A30")
   
+  # Plot 1: BC catch in numbers
+  p_bc_catch <- ggplot() +
+    geom_col(data = OC_annual_BC,
+             aes(x = year, y = bc_catch / 1000, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_bc,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean / 1000, yend = pre_mean / 1000),
+                 color = "#4A7A50", linewidth = 1) +
+    geom_segment(data = ref_bc,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean / 1000, yend = post_mean / 1000),
+                 color = "#2A4A30", linewidth = 1) +
+    scale_fill_manual(values = bc_pal) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(
+      title    = "BC catch of OR Coast Chinook (all stocks combined)",
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
+      x = NULL, y = "BC catch (thousands of fish)"
+    ) +
+    base_theme
   
+  p_bc_catch
+  ggsave("output/plots/OR_BC_Chinook_Catch_P1_Total.png", width = 6, height = 4)
   
+  # Plot 2: BC share of total catch
+  p_bc_share <- ggplot() +
+    geom_col(data = OC_annual_BC,
+             aes(x = year, y = bc_share_catch, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_bc_share,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#4A7A50", linewidth = 1) +
+    geom_segment(data = ref_bc_share,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#2A4A30", linewidth = 1) +
+    scale_fill_manual(values = bc_pal) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(
+      title    = "BC share of total catch — OR Coast Chinook (all stocks combined)",
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
+      x = NULL, y = "BC catch / total catch"
+    ) +
+    base_theme
   
+  p_bc_share
+  ggsave("output/plots/OR_BC_Chinook_Catch_P2_Total.png", width = 6, height = 4)
   
+  # Plot 3: BC exploitation rate
+  p_bc_ER <- ggplot() +
+    geom_col(data = OC_annual_BC,
+             aes(x = year, y = bc_er, fill = period),
+             width = 0.8, alpha = 0.8) +
+    geom_vline(xintercept = intervention_year - 0.5, linetype = "dashed",
+               color = "grey30", linewidth = 0.6) +
+    geom_segment(data = ref_bc_er,
+                 aes(x = x_pre_start, xend = x_pre_end,
+                     y = pre_mean, yend = pre_mean),
+                 color = "#4A7A50", linewidth = 1) +
+    geom_segment(data = ref_bc_er,
+                 aes(x = x_post_start, xend = x_post_end,
+                     y = post_mean, yend = post_mean),
+                 color = "#2A4A30", linewidth = 1) +
+    scale_fill_manual(values = bc_pal) +
+    scale_x_continuous(breaks = x_breaks) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    labs(
+      title    = "BC Exploitation Rate — OR Coast Chinook (all stocks combined)",
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
+      x = NULL, y = "BC catch / total run size"
+    ) +
+    base_theme
   
-  
-  
-  
-
+  p_bc_ER
+  ggsave("output/plots/OR_BC_Chinook_Catch_P3_Total.png", width = 6, height = 4)
   

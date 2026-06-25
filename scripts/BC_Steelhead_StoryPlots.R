@@ -12,6 +12,17 @@ library(tidyverse)
 nass_df <- read_csv("data/nass_steelhead_table_f6.csv") %>%
   filter(!Year %in% c( "Min", "Max", "Averages"))
 
+nass_summary <- nass_df %>%
+  mutate(`Total ER` = as.numeric(gsub("%", "", `Total ER`)) / 100) %>%
+  summarise(
+    mean_ER = mean(`Total ER`, na.rm = TRUE),
+    sd_ER   = sd(`Total ER`, na.rm = TRUE),
+    max_ER  = max(`Total ER`, na.rm = TRUE),
+    min_ER  = min(`Total ER`, na.rm = TRUE)
+  )
+
+nass_summary
+
 # Nass Steelhead FM - Pie =====================
 nass_df_pie <- nass_df %>% 
   dplyr::select(1, 13:15) %>%
@@ -167,6 +178,10 @@ skeena_er <- skeena_df %>%
                 # Vulnerable = below esc goal AND above avg AABM catch
                 vulnerable = case_when(under_goal == "Under Threshold" & above_avg_er == TRUE ~ TRUE,
                                        TRUE ~ FALSE))
+mean(skeena_er$er)
+sd(skeena_er$er)
+max(skeena_er$er)
+min(skeena_er$er)
 
 skeena_ER_plot<-ggplot(skeena_er,
                      aes(x = year, y = esc)) + 
@@ -191,16 +206,17 @@ skeena_ER_plot<-ggplot(skeena_er,
     mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
     high     = "#c0392b",
     midpoint = 0.16, # mean(as.numeric(joined_df$er), na.rm = TRUE),
-    name     = "Exploitation Rate"
+    name     = "Exploitation Rate*"
   ) +
   
   scale_y_continuous(expand = c(0,0)) +
   # scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) + 
   
   labs(
-    title    = "Skeena Steelhead Escapement vs. Exploitation Rates",
-    subtitle = "Red shading = Exploitation Rates\nDashed Lines = Conservation Concern Zone\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
-    x = "Year", y = "Escapement"
+    title    = "Skeena Steelhead Escapement & Estimated Exploitation Rates",
+    subtitle = "Red shading = Estimated Exploitation Rates\nDashed Lines = Conservation Concern Zone\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    caption = "*Estimated from Babine-Late Wild Sockeye population with similiar fishery exposure as Skeena Steelhead",
+    x = "Year", y = "Steelhead Escapement"
   ) +
   
   theme_bw(base_size = 12) +
@@ -218,4 +234,145 @@ ggsave("output/plots/Skeena_Steelhead_esc_goal_ER_plot.png",
        plot = skeena_ER_plot,
        width = 8, height = 5,
        dpi = 300, units = "in")
+
+# Skeena smaller timeseries 
+skeena_ER_plot<-ggplot(skeena_er %>% filter(!year<1980),
+                       aes(x = year, y = esc)) + 
+  # Background shading scaled continuously to ER rate
+  geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                ymin = -Inf, ymax = Inf, fill = er),
+            alpha = 0.8, inherit.aes = FALSE) +
+  
+  # Escapement bars
+  geom_col(alpha = 0.85) +
+  
+  # Conservation Threshold goal dashed line
+  geom_path(aes(y = Critical_Conservation), color = "black", linetype = 2) +
+  
+  # Red points for vulnerable years
+  geom_point(data = skeena_er %>% filter(!year<1980) %>%
+             filter(vulnerable == TRUE),
+             aes(x = year, y = esc),
+             color = "#c0392b", size = 1.5, inherit.aes = FALSE) +
+  
+  scale_fill_gradient2(
+    low      = "#fff5f5",
+    mid      = "#fff5f5",#"#f9c9c9", #"#f4a582",
+    high     = "#c0392b",
+    midpoint = 0.16, # mean(as.numeric(joined_df$er), na.rm = TRUE),
+    name     = "Exploitation Rate*"
+  ) +
+  
+  scale_y_continuous(expand = c(0,0)) +
+  # scale_x_continuous(breaks = seq(1980, 2020, by = 10),expand = c(0,0)) + 
+  
+  labs(
+    title    = "Skeena Steelhead Escapement & Estimated Exploitation Rates",
+    subtitle = "Red shading = Estimated Exploitation Rates\nDashed Lines = Conservation Concern Zone\n Red Points = Above Average Exploitation Rate & Below Average Escapement",
+    caption = "*Estimated from Babine-Late Wild Sockeye population with similiar fishery exposure as Skeena Steelhead",
+    x = "Year", y = "Steelhead Escapement"
+  ) +
+  
+  theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom",
+    strip.text       = element_text(face = "bold", size = 10),
+    plot.title       = element_text(face = "bold", hjust = 0.5, size = 14),
+    plot.subtitle    = element_text(hjust = 0.5, size = 9, color = "grey40"),
+    panel.grid.minor = element_blank()
+  )
+
+skeena_ER_plot
+
+ggsave("output/plots/Skeena_Steelhead_esc_goal_ER_plot_shorterTS.png",
+       plot = skeena_ER_plot,
+       width = 8, height = 5,
+       dpi = 300, units = "in")
+
+# LOOK AT TOTAL numebrs of fish caught:
+# skeena_df <- SEAK_steelhead_model_output_2025_01_10
+library(tidyverse)
+
+Skeena_catch <- skeena_df %>%
+  dplyr::select(year, catch, catch.lo, catch.up)
+
+ggplot(data = Skeena_catch) + 
+  geom_bar(aes(x=year, y = catch),stat = "identity") +
+  geom_errorbar(aes(x=year,ymin = catch.lo, ymax = catch.up)) +
+  geom_vline(xintercept=1997, linetype = 2, color = "blue") +
+  theme_bw()+
+  labs(x="Year", y = "Estimated Catch")
+
+# SE Alaska Net catch data (digitized from Thomas 2011 via Rosenberger & Taylor 2022)
+se_alaska <- data.frame(
+  year = 1963:2009,
+  se_ak_catch = c(
+    0,    # 1963
+    0,    # 1964
+    0,    # 1965
+    0,    # 1966
+    0,    # 1967
+    0,    # 1968
+    300,  # 1969
+    600,  # 1970
+    900,  # 1971
+    1200, # 1972
+    1000, # 1973
+    700,  # 1974
+    500,  # 1975
+    400,  # 1976
+    500,  # 1977
+    700,  # 1978
+    1000, # 1979
+    800, # 1980
+    1000, # 1981
+    800, # 1982
+    1500, # 1983
+    3000, # 1984
+    5000, # 1985
+    8000,# 1986
+    9500, # 1987  <- peak
+    2500,  # 1988  <- sharp drop
+    2500,  # 1989
+    2200,  # 1990
+    2000,  # 1991
+    1800,  # 1992
+    4500, # 1993  <- second peak
+    1000, # 1994
+    250, # 1995
+    500,  # 1996
+    200,  # 1997
+    100,  # 1998
+    100,  # 1999
+    100,  # 2000
+    50,   # 2001
+    50,   # 2002
+    50,   # 2003
+    50,   # 2004
+    50,   # 2005
+    50,   # 2006
+    50,   # 2007
+    50,   # 2008
+    50    # 2009
+  )
+)
+
+ggplot(data = Skeena_catch %>% filter(!year<1968 & !year>1997)) +
+  geom_area(data = se_alaska %>% filter(!year<1968 & !year>1997),
+            aes(x = year, y = se_ak_catch),
+            fill = "#6B2737", color = "#6B2737", alpha = 0.7) +
+  geom_bar(aes(x = year, y = catch), stat = "identity",
+           fill = "gray", color = "black", alpha = 0.4) +
+  geom_errorbar(aes(x = year, ymin = catch.lo, ymax = catch.up),
+                width = 0.4) +
+  # geom_vline(xintercept = 1997, linetype = 2, color = "blue") +
+  theme_bw() +
+  labs(x = "Year", y = "Estimated Catch",
+       caption = "Maroon area: SE Alaska reported steelhead catch (Districts 101–104)\nSource: Thomas (2011) via Rosenberger & Taylor (2022)")
+
+df1 <- Skeena_catch %>% filter(!year<1968 & !year>1997)
+df2 <- se_alaska %>% filter(!year<1968 & !year>1997)
+
+cor.test(df1$catch, df2$se_ak_catch)
+
 
