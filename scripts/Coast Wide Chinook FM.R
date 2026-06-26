@@ -345,8 +345,30 @@ puget_sog <- c("Nooksack", "Skagit Spring", "Skagit Fall", "Stillaguamish",
                "Snohomish Fall", "Green", "Nisqually", "Cowichan", 
                "Puntledge Summer")
 
-pie_main <- pie_coords %>% filter(!population %in% puget_sog)
+  pie_main <- pie_coords %>% filter(!population %in% puget_sog)
 pie_inset <- pie_coords %>% filter(population %in% puget_sog)
+
+# 
+# # temporary just for an exmaple plot for matt 
+# puget_sog <- c("Stikine", "Unuk", 
+#                "Atnarko","Kaouk Fall","Tahsish Fall", "Artlish Fall", "Megin Fall", "Moyeha Fall",       
+#                "South Thompson","Nicola", "Quillayute Fall",      
+#                "Hoh Spring",          
+#                "Hoh Fall",             
+#                "Queets Spring", 
+#                "Grays Harbor Fall",     
+#                "Grays",               
+#                "Phillips", "Lewis",  
+#                "Coweeman",        
+#                "Elochoman", 
+#                "Siuslaw Fall",           
+#                "South Umpqua",         
+#                "Coquille",    
+#                "Nooksack", "Skagit Spring", "Skagit Fall", "Stillaguamish",
+#                "Snohomish Fall", "Green", "Nisqually", "Cowichan", 
+#                "Puntledge Summer")
+# 
+#  pie_main <- pie_coords %>% filter(!population %in% puget_sog)
 
 region_cols <- names(custom_pal)  # your broad_region columns
 
@@ -378,6 +400,9 @@ main_map <- ggplot() +
   )
 
 main_map
+
+ggsave("output/plots/FM_Map.png", width = 6, height =4, bg = "white")
+
 
 ## Salish Sea Map =====
 inset_map <- ggplot() +
@@ -415,7 +440,7 @@ final_map <- ggdraw(main_map) +
 ggsave("population_pie_map.pdf", final_map, width = 12, height = 16, units = "in")
 
 
-# test ====
+# BETTER PLOT  ====
 library(packcircles) 
 
 # 1. Define TRUE river mouth coordinates (for leader lines)
@@ -563,7 +588,7 @@ main_map <- ggplot() +
   ) +
   
   scale_fill_manual(values = custom_pal, name = "Fishery Region") +
-  coord_sf(xlim = c(-155, -120), ylim = c(42, 61)) +
+   coord_sf(xlim = c(-155, -120), ylim = c(42, 61)) +
   theme_void() +
   theme(
     legend.position = "left",
@@ -572,3 +597,6 @@ main_map <- ggplot() +
   )
 
 main_map
+# Save
+ggsave("output/plots/population_pie_map.png", width = 7, height = 7,bg = "white")
+
