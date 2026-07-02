@@ -5,8 +5,8 @@ library(viridis)
 library(cowplot)
 library(showtext)
 
-font_add_google("DM Sans", "dm_sans")
-showtext_auto()
+# font_add_google("DM Sans", "dm_sans")
+# showtext_auto()
 
 custom_pal <- c(
   "Washington" = "#2E5F6E",    
@@ -181,19 +181,19 @@ ratio_time_plot <- ggplot(catch_distributions,
     x        = "Year",
     y        = "Equity Ratio (Harvest Share / Production Share)"
   ) +
-  theme_minimal(base_family = "dm_sans") +
-  theme(
-    plot.title       = element_text(face = "bold", size = 12),
-    plot.subtitle    = element_text(size = 9, color = "grey40"),
-    axis.text.x      = element_text(angle = 45, hjust = 1),
-    panel.grid.minor = element_blank(),
-    strip.text       = element_text(face = "bold", size = 11)
-  )
+  theme_minimal()+ #base_family = "dm_sans") +
+  # theme(
+  #   plot.title       = element_text(face = "bold", size = 12),
+  #   plot.subtitle    = element_text(size = 9, color = "grey40"),
+  #   axis.text.x      = element_text(angle = 45, hjust = 1),
+  #   panel.grid.minor = element_blank(),
+  #   strip.text       = element_text(face = "bold", size = 11)
+  # )
 
 ratio_time_plot
 
 ggsave("output/plots/equity_ratio_jurisdiction_timeseries.pdf",
-       ratio_time_plot, width = 10, height = 8, units = "in")
+       ratio_time_plot, width = 10, height = 8)
 
 ## Bar plot =======
 
@@ -252,25 +252,27 @@ ratio_bar_plot <- ggplot(catch_distributions_plot,
     x = "Year",
     y = "Score (Harvest Share − Production Share)"
   ) +
-  theme_bw(base_size = 16) +
+  theme_minimal() + 
+  # theme_bw(base_size = 16) +
   theme(
     # plot.title         = element_text(face = "bold", size = 18),
     # plot.subtitle      = element_text(size = 14, color = "grey40"),
-    axis.text.x        = element_text(angle = 45, hjust = 1, size = 13),
-    axis.text.y        = element_text(size = 15),
-    axis.title         = element_text(size = 15),
-    panel.grid.minor   = element_blank(),
-    panel.grid.major.x = element_blank(),
-    strip.text         = element_text(face = "bold", size = 16),
-    legend.position    = "bottom",
-    legend.text        = element_text(size = 15),
-    legend.title       = element_text(size = 15)
+    axis.text.x        = element_text(angle = 45, hjust = 1),#, size = 13),
+    # axis.text.y        = element_text(size = 15),
+    # axis.title         = element_text(size = 15),
+    # panel.grid.minor   = element_blank(),
+    # panel.grid.major.x = element_blank(),
+    # strip.text         = element_text(face = "bold", size = 16),
+    # legend.position    = "bottom",
+    # legend.text        = element_text(size = 15),
+    # legend.title       = element_text(size = 15)
   )
 
 ratio_bar_plot
 
 ggsave("output/plots/equity_ratio_jurisdiction_barplot.png",
        ratio_bar_plot, width = 8, height = 6)
+
 ## Two Time Periods =====
 # calculate means for two time periods
 equity_period_means <- catch_distributions %>%

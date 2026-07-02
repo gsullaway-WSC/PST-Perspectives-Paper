@@ -152,7 +152,6 @@ joined_df <- total_run_df %>%
   ungroup() %>%
   filter(!year<2000)#, !year ==2023)
  
-
 # All goals for plotting
 esc_goals_all <- esc_goals %>%
   filter(!is.na(escapement_goal)) %>%
@@ -248,11 +247,75 @@ for (p in plots) {
 }
 dev.off()
 
-## Pull out 4 Rivers for the PST Manuscript ========
+## Figure 3 with facet - Mean benchmark, pull out 4 Rivers for the PST Manuscript ========
+fig_pops <- c("Unuk", "Lower Shuswap", "Queets SprSum", "Siuslaw Fall")
+
+  df_pop <- joined_df %>% filter(population %in% fig_pops)
+  esc_goals_fig <- esc_goals_all %>% filter(population %in% fig_pops)
+  
+  Fig3 <- ggplot(df_pop, aes(x = year, y = esc_tot)) +
+    
+    geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                  ymin = -Inf, ymax = Inf, fill = ocean_er),
+              alpha = 0.8, inherit.aes = FALSE) +
+    
+    geom_col(alpha = 0.85) +
+    
+    geom_point(data = df_pop %>% filter(PSC_85_Goal == TRUE),
+               aes(x = year - 0.15, y = esc_tot),
+               color = "#2980b9", size = 2, shape = 17, inherit.aes = FALSE) +
+    
+    geom_line(data = esc_goals_fig %>% filter(LineType == "Solid"),
+              aes(y = escapement_goal, group = goal_type),
+              color = "black", linetype = "solid",# linewidth = 1,
+              show.legend = FALSE) +
+    
+    geom_line(data = esc_goals_fig %>% filter(LineType == "Dotted"),
+              aes(y = escapement_goal, group = goal_type),
+              color = "black", linetype = "dotted", #linewidth = 1,
+              show.legend = FALSE) +
+    
+    geom_point(data = df_pop %>% filter(vulnerable_er == TRUE),
+               aes(x = year + 0.15, y = esc_tot),
+               color = "#c0392b", size = 2, inherit.aes = FALSE) +
+    
+    scale_fill_gradient2(
+      low      = "#fff5f5",
+      mid      = "#fff5f5",
+      high     = "#c0392b",
+      midpoint = mean(as.numeric(df_pop$ocean_er), na.rm = TRUE),
+      name     = "Mixed Stock ER"
+    ) +
+    
+    scale_y_continuous(expand = c(0, 0)) +
+    scale_x_continuous(breaks = seq(2000, 2024, by = 5)) +
+    
+    labs(#title = pop,
+         x = "Year", y = "Escapement") +
+    facet_wrap(~population,scales = "free") + 
+    theme_minimal( ) +  # increased from 16
+    theme(
+      legend.position    = "bottom",
+      # legend.title       = element_text(size = 16),
+      # legend.text        = element_text(size = 16),
+      # strip.text         = element_text(face = "bold", size = 16),
+      # plot.title         = element_text(face = "bold", hjust = 0.5, size = 18),
+      # axis.text          = element_text(size = 14),
+      # axis.title         = element_text(size = 16),
+      panel.grid.minor   = element_blank()
+    )
+ 
+  Fig3
+  ggsave("output/plots/Figure_3_Facet_Chinook_Coastwide_escapement_Pop.png",
+         width = 9, height = 7)  
+    
+## Figure 3 - Mean benchmark, pull out 4 Rivers for the PST Manuscript ========
 plots_fig2 <- lapply(fig_pops, function(pop) {
   
-  df_pop <- joined_df %>% filter(population == pop)
-  esc_goals_fig <- esc_goals_all %>% filter(population == pop)
+  df_pop <- joined_df %>% filter(population == pop, 
+                                 !year ==2023)
+  esc_goals_fig <- esc_goals_all %>% filter(population == pop,
+                                            !year ==2023)
   
   ggplot(df_pop, aes(x = year, y = esc_tot)) +
     
@@ -285,7 +348,7 @@ plots_fig2 <- lapply(fig_pops, function(pop) {
       mid      = "#fff5f5",
       high     = "#c0392b",
       midpoint = mean(as.numeric(df_pop$ocean_er), na.rm = TRUE),
-      name     = "Mixed Stock Exploitation Rate"
+      name     = "Mixed Stock\nER"
     ) +
     
     scale_y_continuous(expand = c(0, 0)) +
@@ -293,15 +356,15 @@ plots_fig2 <- lapply(fig_pops, function(pop) {
     
     labs(title = pop, x = "Year", y = "Escapement") +
     
-    theme_bw( ) +  # increased from 16
+   theme_minimal( ) +  # increased from 16
     theme(
       legend.position    = "bottom",
-      legend.title       = element_text(size = 16),
-      legend.text        = element_text(size = 16),
-      strip.text         = element_text(face = "bold", size = 16),
-      plot.title         = element_text(face = "bold", hjust = 0.5, size = 18),
-      axis.text          = element_text(size = 14),
-      axis.title         = element_text(size = 16),
+      # legend.title       = element_text(size = 16),
+      # legend.text        = element_text(size = 10),
+      # strip.text         = element_text(face = "bold", size = 16),
+      # plot.title         = element_text(face = "bold", hjust = 0.5, size = 18),
+      # axis.text          = element_text(size = 14),
+      # axis.title         = element_text(size = 16),
       panel.grid.minor   = element_blank()
     )
 })
@@ -316,8 +379,12 @@ Figure2 <- wrap_plots(
   ncol = 2
 ) + plot_layout(guides = "keep")
 
-ggsave("output/plots/Paper_Chinook_Coastwide_escapement_by_population.png",
-       Figure2, width = 9, height = 7)  
+Figure2
+ 
+png("output/plots/Paper_Chinook_Coastwide_escapement_by_population.png", 
+    width = 1500, height = 800, res = 150)
+print(Figure2)   # print() needed for ggplot objects
+dev.off()
 
 ## Tables ==== 
 ### Table 1: Stock-level summary =============
@@ -520,7 +587,7 @@ print(period_totals_long)
 write_csv(period_totals_long,
           "output/tables/period_totals_long.csv")
 
-##  Plot Comparing Regions and summary stats ===========
+##  Figure 4 - Plot Comparing Regions and summary stats ===========
 # Step 1: stock-level summary by period (group by population)
 escapement_summary <- joined_df %>%
   filter(year >= 2009) %>%
@@ -613,6 +680,102 @@ ggsave("output/plots/pct_popyr_below_psc85_by_region_period_lollipop.png",
        p_pct_years, width = 6, height = 5)
 
 # Plots and Tables based on 40% ER ==============
+
+## 40% ER Benchmark - Main Figure 3 - 4 selected populations ========
+fig_pops <- c("Unuk", "Lower Shuswap", "Queets SprSum", "Siuslaw Fall")
+
+plots_fig2_updated <- lapply(fig_pops, function(pop) {
+  
+  df_pop       <- joined_df %>% filter(population == pop)
+  esc_goals_fig <- esc_goals_all %>% filter(population == pop)
+  
+  ggplot(df_pop, aes(x = year, y = esc_tot)) +
+    
+    # Background shading
+    geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
+                  ymin = -Inf, ymax = Inf, fill = ocean_er),
+              alpha = 0.8, inherit.aes = FALSE) +
+    
+    # Escapement bars
+    geom_col(alpha = 0.85) +
+    
+    # Goal lines
+    geom_line(data = esc_goals_fig %>% filter(LineType == "Solid"),
+              aes(y = escapement_goal, group = goal_type),
+              color = "black", linetype = "solid", show.legend = FALSE) +
+    
+    geom_line(data = esc_goals_fig %>% filter(LineType == "Dotted"),
+              aes(y = escapement_goal, group = goal_type),
+              color = "black", linetype = "dotted", show.legend = FALSE) +
+    
+    # RED circle: below escapement goal AND ER > 40%
+    geom_point(data = df_pop %>% filter(under_goal == "Under Esc. Goal" & ocean_er > 0.40),
+               aes(x = year + 0.15, y = esc_tot),
+               color = "#c0392b", fill = "#c0392b",
+               size = 2, shape = 21, inherit.aes = FALSE) +
+    
+    # BLUE triangle: below PSC 85% goal AND ER > 40%
+    geom_point(data = df_pop %>% filter(PSC_85_Goal == TRUE & ocean_er > 0.40),
+               aes(x = year - 0.15, y = esc_tot),
+               color = "#2980b9", fill = "#2980b9",
+               size = 2, shape = 24, inherit.aes = FALSE) +
+    
+    scale_fill_gradient2(
+      low      = "#fff5f5",
+      mid      = "#fff5f5",
+      high     = "#c0392b",
+      midpoint = mean(as.numeric(df_pop$ocean_er), na.rm = TRUE),
+      name     = "Mixed Stock ER"
+    ) +
+    
+    scale_y_continuous(expand = c(0, 0)) +
+    
+    labs(title = pop, x = "Year", y = "Escapement") +
+    theme_minimal(base_size = 20)
+  # theme_bw(base_size = 12) +
+  theme(
+    legend.position  = "bottom"
+    #   strip.text       = element_text(face = "bold", size = 10),
+    #   plot.title       = element_text(face = "bold", hjust = 0.5, size = 12),
+    #   panel.grid.minor = element_blank()
+  )
+})
+
+names(plots_fig2_updated) <- fig_pops
+
+# add shared legend using a dummy plot
+legend_plot <- ggplot() +
+  geom_point(aes(x = 1, y = 1, color = "Below Esc. Goal & ER > 40%"), 
+             shape = 21, size = 3, fill = "#c0392b") +
+  geom_point(aes(x = 1, y = 2, color = "Below PSC 85% Goal & ER > 40%"), 
+             shape = 24, size = 3, fill = "#2980b9") +
+  scale_color_manual(
+    name   = NULL,
+    values = c("Below Esc. Goal & ER > 40%"     = "#c0392b",
+               "Below PSC 85% Goal & ER > 40%"  = "#2980b9")
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+Figure2_updated <- wrap_plots(
+  plots_fig2_updated[["Unuk"]],
+  plots_fig2_updated[["Lower Shuswap"]],
+  plots_fig2_updated[["Queets SprSum"]],
+  plots_fig2_updated[["Siuslaw Fall"]],
+  ncol = 2
+) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+Figure2_updated
+
+ggsave("output/plots/Paper_Chinook_Coastwide_escapement_updated.png",
+       Figure2_updated, width = 12, height = 9)
+
+
+# CYER is not greater than 40%, except for Cowichan, so keep baseline of 40% ...  
+
+
 populations <- unique(joined_df$population)
 
 plots_updated <- lapply(populations, function(pop) {
@@ -683,100 +846,7 @@ for (p in plots_updated) {
   print(p)
 }
 dev.off()
-
-## Main Figure 2 - 4 selected populations ========
-fig_pops <- c("Unuk", "Lower Shuswap", "Queets SprSum", "Siuslaw Fall")
-
-plots_fig2_updated <- lapply(fig_pops, function(pop) {
-  
-  df_pop       <- joined_df %>% filter(population == pop)
-  esc_goals_fig <- esc_goals_all %>% filter(population == pop)
-  
-  ggplot(df_pop, aes(x = year, y = esc_tot)) +
-    
-    # Background shading
-    geom_rect(aes(xmin = year - 0.5, xmax = year + 0.5,
-                  ymin = -Inf, ymax = Inf, fill = ocean_er),
-              alpha = 0.8, inherit.aes = FALSE) +
-    
-    # Escapement bars
-    geom_col(alpha = 0.85) +
-    
-    # Goal lines
-    geom_line(data = esc_goals_fig %>% filter(LineType == "Solid"),
-              aes(y = escapement_goal, group = goal_type),
-              color = "black", linetype = "solid", show.legend = FALSE) +
-    
-    geom_line(data = esc_goals_fig %>% filter(LineType == "Dotted"),
-              aes(y = escapement_goal, group = goal_type),
-              color = "black", linetype = "dotted", show.legend = FALSE) +
-    
-    # RED circle: below escapement goal AND ER > 40%
-    geom_point(data = df_pop %>% filter(under_goal == "Under Esc. Goal" & ocean_er > 0.40),
-               aes(x = year + 0.15, y = esc_tot),
-               color = "#c0392b", fill = "#c0392b",
-               size = 2, shape = 21, inherit.aes = FALSE) +
-    
-    # BLUE triangle: below PSC 85% goal AND ER > 40%
-    geom_point(data = df_pop %>% filter(PSC_85_Goal == TRUE & ocean_er > 0.40),
-               aes(x = year - 0.15, y = esc_tot),
-               color = "#2980b9", fill = "#2980b9",
-               size = 2, shape = 24, inherit.aes = FALSE) +
-    
-    scale_fill_gradient2(
-      low      = "#fff5f5",
-      mid      = "#fff5f5",
-      high     = "#c0392b",
-      midpoint = mean(as.numeric(df_pop$ocean_er), na.rm = TRUE),
-      name     = "Mixed Stock ER"
-    ) +
-    
-    scale_y_continuous(expand = c(0, 0)) +
-    
-    labs(title = pop, x = "Year", y = "Escapement") +
-    
-    theme_bw(base_size = 12) +
-    theme(
-      legend.position  = "bottom",
-      strip.text       = element_text(face = "bold", size = 10),
-      plot.title       = element_text(face = "bold", hjust = 0.5, size = 12),
-      panel.grid.minor = element_blank()
-    )
-})
-
-names(plots_fig2_updated) <- fig_pops
-
-# add shared legend using a dummy plot
-legend_plot <- ggplot() +
-  geom_point(aes(x = 1, y = 1, color = "Below Esc. Goal & ER > 40%"), 
-             shape = 21, size = 3, fill = "#c0392b") +
-  geom_point(aes(x = 1, y = 2, color = "Below PSC 85% Goal & ER > 40%"), 
-             shape = 24, size = 3, fill = "#2980b9") +
-  scale_color_manual(
-    name   = NULL,
-    values = c("Below Esc. Goal & ER > 40%"     = "#c0392b",
-               "Below PSC 85% Goal & ER > 40%"  = "#2980b9")
-  ) +
-  theme_void() +
-  theme(legend.position = "bottom")
-
-Figure2_updated <- wrap_plots(
-  plots_fig2_updated[["Unuk"]],
-  plots_fig2_updated[["Lower Shuswap"]],
-  plots_fig2_updated[["Queets SprSum"]],
-  plots_fig2_updated[["Siuslaw Fall"]],
-  ncol = 2
-) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "bottom")
-
-Figure2_updated
-
-ggsave("output/plots/Paper_Chinook_Coastwide_escapement_updated.png",
-       Figure2_updated, width = 12, height = 9)
-
-
-# CYER is not greater than 40%, except for Cowichan, so keep baseline of 40% ...  
+ 
 ## Summary statistics ===========
  
  

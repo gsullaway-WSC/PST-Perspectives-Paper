@@ -8,6 +8,7 @@ library(readxl)
 library(viridis)
 library(cowplot) 
 library(ggrepel)
+library(tidyverse)
  
 # colors ====
 custom_pal <- c(
@@ -18,20 +19,20 @@ custom_pal <- c(
   "British Columbia"       = "#8A9E7A", 
   "Alaska"                 = "#4A7A50"
 )
+# 
+# base_theme <- theme_minimal(base_size = 14) +
+#   theme(
+#     panel.grid.minor   = element_blank(),
+#     panel.grid.major.x = element_blank(),
+#     strip.text         = element_text(face = "bold", size = 12),
+#     plot.title         = element_text(face = "bold", size = 14),
+#     plot.subtitle      = element_text(color = "grey40", size = 12),
+#     axis.title         = element_text(size = 12),
+#     legend.position    = "bottom",
+#     legend.title       = element_blank()
+#   )
 
-base_theme <- theme_minimal(base_size = 14) +
-  theme(
-    panel.grid.minor   = element_blank(),
-    panel.grid.major.x = element_blank(),
-    strip.text         = element_text(face = "bold", size = 12),
-    plot.title         = element_text(face = "bold", size = 14),
-    plot.subtitle      = element_text(color = "grey40", size = 12),
-    axis.title         = element_text(size = 12),
-    legend.position    = "bottom",
-    legend.title       = element_blank()
-  )
-
-# load ====== 
+# Load Data ====== 
 data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
   filter(region %in% c("OC","ORC"),
          !year == 2023, !is.na(total_run), !total_run =="NA") 
@@ -1326,16 +1327,24 @@ ggsave(
       subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
       x = NULL, y = "AK catch / total run size"
     ) +
-    base_theme
+    theme_minimal()
   
   p_ak_ER
   ggsave("output/plots/OR_AK_Chinook_Catch_P3.png",width = 6, height = 4)
   
+  
+  # Best Plots, Sent to Kirk =================
   # Group Oregon Coast ==== 
   ## AK Catch and ER for OR Coast ==========
   # Step 1: calculate FM numbers from percents for OR Coast stocks only
-  total_run_df <- data %>%
-    dplyr::select(year, population, region, total_run) %>%
+  
+  # Load Data ====== 
+  data <- readxl::read_excel("data/PSTChinookCWT_data_April18_2025.xlsx") %>%
+    filter(region %in% c("OC","ORC"),
+           !year == 2023, !is.na(total_run), !total_run =="NA") 
+  
+  total_run_df<-data %>%  
+    dplyr::distinct(year,population,region,total_run) %>% 
     dplyr::mutate(total_run = as.numeric(total_run))
   
   catch_distributions <- data %>%
@@ -1345,13 +1354,11 @@ ggsave(
       "stray", "aabm_tot", "nbc_is_tot", "sbc_is_tot",
       "US_is_tot", "esc_pct", "er", "term_tot"
     )) %>%
-    dplyr::mutate(percent_mort = as.numeric(percent_mort) / 100)
-  
+    dplyr::mutate(percent_mort = as.numeric(percent_mort)/100)
+ 
   # Step 2: filter to OR Coast stocks only, calculate mortality numbers
   OC_fish <- catch_distributions %>%
     left_join(total_run_df) %>%
-    filter(!is.na(percent_mort),
-           region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%  # OR Coast regions only
     dplyr::mutate(
       mortality_numbers = total_run * percent_mort,
       broad_region = case_when(
@@ -1370,23 +1377,21 @@ ggsave(
         fishery_region == "wac_n"              ~ "Washington",
         TRUE                                   ~ "Check"
       )
-    ) %>%
-    filter(broad_region != "Check")
+    ) 
   
-  # Step 3: sum total run and FM numbers across ALL OR Coast stocks by year
   OC_annual <- OC_fish %>%
-    # get total run per population per year (avoid double counting)
-    # distinct(population, year, total_run) %>%
+    # get total run per population per year FIRST (avoid double counting)
+    # use distinct BEFORE summing across populations
+    distinct(population, year, total_run) %>%
     group_by(year) %>%
     summarise(total_run = sum(total_run, na.rm = TRUE), .groups = "drop") %>%
-    # join total FM numbers
+    # then join FM numbers which ARE correctly summed across fishery regions
     left_join(
       OC_fish %>%
         group_by(year) %>%
         summarise(total_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
                   .groups = "drop")
     ) %>%
-    # join AK FM numbers specifically
     left_join(
       OC_fish %>%
         filter(broad_region == "Alaska") %>%
@@ -1394,20 +1399,11 @@ ggsave(
         summarise(ak_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
                   .groups = "drop")
     ) %>%
-    # join escapement totals from original data
-    left_join(
-      data %>%
-        filter(region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%
-        group_by(year) %>%
-        summarise(esc_tot = sum(as.numeric(esc_tot), na.rm = TRUE),
-                  .groups = "drop")
-    ) %>%
     mutate(
-      # recalculate exploitation rates from summed numbers
-      total_catch  = total_FM_numbers,
-      ak_catch     = ak_FM_numbers,
-      non_ak_catch = total_catch - ak_catch,
-      ak_er        = ak_catch / total_run,
+      total_catch    = total_FM_numbers,
+      ak_catch       = ak_FM_numbers,
+      non_ak_catch   = total_catch - ak_catch,
+      ak_er          = ak_catch / total_run,
       ak_share_catch = ak_catch / total_catch,
       period = factor(if_else(year < 2019, "Pre-2019", "Post-2019"),
                       levels = c("Pre-2019", "Post-2019")),
@@ -1492,8 +1488,8 @@ ggsave(
       title    = "AK catch of OR Coast Chinook (all stocks combined)",
       subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean ",
       x = NULL, y = "AK catch (thousands of fish)"
-    ) +
-    base_theme
+    ) #+
+    #base_theme
   
   p_ak_catch
   ggsave("output/plots/OR_AK_Chinook_Catch_P1_Total.png", width = 6, height = 4)
@@ -1519,9 +1515,10 @@ ggsave(
     labs(
       title    = "AK share of total catch — OR Coast Chinook (all stocks combined)",
       subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
-      x = NULL, y = "AK catch / total catch"
+      x = NULL, y = "Percent total catch", fill = " "
     ) +
-    base_theme
+    theme_minimal()
+   # base_theme
   
   p_ak_share
   ggsave("output/plots/OR_AK_Chinook_Catch_P2_Total.png", width = 6, height = 4)
@@ -1547,9 +1544,10 @@ ggsave(
     labs(
       title    = "AK Exploitation Rate — OR Coast Chinook (all stocks combined)",
       subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
-      x = NULL, y = "AK catch / total run size"
+      x = NULL, y = "Exploitation Rate", fill = ""
     ) +
-    base_theme
+    theme_minimal()
+    #base_theme
   
   p_ak_ER
   ggsave("output/plots/OR_AK_Chinook_Catch_P3_Total.png", width = 6, height = 4)
@@ -1562,7 +1560,7 @@ ggsave(
     # get total run per population per year (avoid double counting)
     distinct(population, year, total_run) %>%
     group_by(year) %>%
-    summarise(total_run = sum(total_run, na.rm = TRUE), .groups = "drop") %>%
+    summarise(total_run = sum(total_run, na.rm = TRUE)) %>%
     # join total FM numbers
     left_join(
       OC_fish %>%
@@ -1576,14 +1574,6 @@ ggsave(
         filter(broad_region == "British Columbia") %>%
         group_by(year) %>%
         summarise(bc_FM_numbers = sum(mortality_numbers, na.rm = TRUE),
-                  .groups = "drop")
-    ) %>%
-    # join escapement totals from original data
-    left_join(
-      data %>%
-        filter(region %in% c("ORC", "OC", "MCR", "LCR", "OR")) %>%
-        group_by(year) %>%
-        summarise(esc_tot = sum(as.numeric(esc_tot), na.rm = TRUE),
                   .groups = "drop")
     ) %>%
     mutate(
@@ -1645,8 +1635,8 @@ ggsave(
       title    = "BC catch of OR Coast Chinook (all stocks combined)",
       subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
       x = NULL, y = "BC catch (thousands of fish)"
-    ) +
-    base_theme
+    ) + theme_minimal() #+
+    #base_theme
   
   p_bc_catch
   ggsave("output/plots/OR_BC_Chinook_Catch_P1_Total.png", width = 6, height = 4)
@@ -1673,8 +1663,7 @@ ggsave(
       title    = "BC share of total catch — OR Coast Chinook (all stocks combined)",
       subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
       x = NULL, y = "BC catch / total catch"
-    ) +
-    base_theme
+    ) + theme_minimal() 
   
   p_bc_share
   ggsave("output/plots/OR_BC_Chinook_Catch_P2_Total.png", width = 6, height = 4)
@@ -1701,8 +1690,7 @@ ggsave(
       title    = "BC Exploitation Rate — OR Coast Chinook (all stocks combined)",
       subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
       x = NULL, y = "BC catch / total run size"
-    ) +
-    base_theme
+    ) + theme_minimal() 
   
   p_bc_ER
   ggsave("output/plots/OR_BC_Chinook_Catch_P3_Total.png", width = 6, height = 4)
