@@ -162,8 +162,8 @@ north_to_south_order <- c(
   "South Umpqua",
   "Coquille"
 )
- 
-  # Loop Through Each population to make pie chart ======= 
+#  
+#   # Loop Through Each population to make pie chart ======= 
 pie_df2 <- Pop_plot_df %>%
   filter(year > 2008 & year < 2020) %>%
   group_by(broad_region, population) %>%
@@ -174,7 +174,7 @@ pie_df2 <- Pop_plot_df %>%
       broad_region == "Alaska"                  ~ "AK",
       broad_region == "British Columbia"        ~ "BC",
       broad_region == "Washington"              ~ "WA",
-      broad_region == "Oregon"                  ~ "OR", 
+      broad_region == "Oregon"                  ~ "OR",
       TRUE ~ NA_character_),
     population = case_when(
           # Handle suffix replacements first
@@ -183,87 +183,87 @@ pie_df2 <- Pop_plot_df %>%
           grepl("_su$", population)  ~ paste(gsub("_su$", "", population), "Summer"),
           grepl("_br_w$", population) ~ paste(gsub("_br_w$", "", population), "Upriver Bright"),
           # Then clean remaining underscores for everything else
-          population == "South_umpqua" ~ "South Umpqua", 
+          population == "South_umpqua" ~ "South Umpqua",
           TRUE ~ gsub("_", " ", population)
         ),
         # Clean any remaining underscores in the suffix-replaced names too
     population = gsub("_", " ", population),
     population = factor(population, levels = north_to_south_order))
-    
-  
-# Get the unique populations to loop over
-populations <- unique(pie_df2$population)
-populations
 
-#  Loop — one plot per population
-population_pies <- purrr::map(populations, function(pop) {
-  
-  # Filter to this population and compute cum_pos HERE (per-population)
-  df <- pie_df2 %>%
-    filter(population == pop) %>%
-    arrange(desc(broad_region)) %>%           # consistent slice order
-    mutate(
-      cum_pos = cumsum(avg_mort) - avg_mort / 2,
-      label   = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")
-    )
-  
-  ggplot(df, aes(x = "", y = avg_mort, fill = broad_region)) +
-    geom_col(color = "black", alpha = 0.9, width = 1) +
-    
-    # Labels inside for large slices
-    geom_text(
-      aes(y = cum_pos,
-          label = ifelse(avg_mort >= 0.05, label, "")),
-      size = 4, fontface = "bold", family = "dm_sans", color = "black"
-    ) +
-    
-    # Labels outside for small slices
-    geom_text(
-      aes(y = cum_pos,
-          label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, label, "")),
-       x = 1.6,
-      size = 4, fontface = "bold", family = "dm_sans", color = "black"
-    ) +
-    
-    coord_polar(theta = "y", clip = "off") +
-    scale_fill_manual(values = custom_pal, name = "Fishery Region") +
-    ggtitle(pop) +                             # population name as title
-    theme_void() +
-    theme(
-      plot.title        = element_text(family = "dm_sans", size = 11,
-                                       face = "bold", hjust = 0.5),
-      legend.title      = element_text(family = "dm_sans", size = 10, face = "bold"),
-      legend.text       = element_text(family = "dm_sans", size = 9),
-      legend.margin     = margin(t = 10, b = -10, unit = "mm"),
-      legend.key.size   = unit(0.4, "cm"),
-      legend.spacing.x  = unit(0.2, "cm"),
-      plot.margin       = margin(0, 5, 0, 5, "mm"),
-      plot.background   = element_blank()
-    )
-})
 
-# Name the list so you can access by population name
-names(population_pies) <- populations
-
-# Step 4: View one
-# population_pies[["Taku"]]
-
-# Step 5 (optional): Combine into a grid with patchwork
-library(patchwork)
-wrap_plots(population_pies, guides = "collect")
-
-# Save all population pies to a single multi-page PDF
-
-pdf_path <- "output/plots/Chinook_population_pies.pdf"
-
-pdf(pdf_path, width = 8, height = 8)  # adjust dimensions as needed
- 
-for (pop in levels(pie_df2$population)) {
-  print(population_pies[[pop]])
-}
-
-dev.off()
-  
+# # Get the unique populations to loop over
+# populations <- unique(pie_df2$population)
+# populations
+# 
+# #  Loop — one plot per population
+# population_pies <- purrr::map(populations, function(pop) {
+#   
+#   # Filter to this population and compute cum_pos HERE (per-population)
+#   df <- pie_df2 %>%
+#     filter(population == pop) %>%
+#     arrange(desc(broad_region)) %>%           # consistent slice order
+#     mutate(
+#       cum_pos = cumsum(avg_mort) - avg_mort / 2,
+#       label   = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")
+#     )
+#   
+#   ggplot(df, aes(x = "", y = avg_mort, fill = broad_region)) +
+#     geom_col(color = "black", alpha = 0.9, width = 1) +
+#     
+#     # Labels inside for large slices
+#     geom_text(
+#       aes(y = cum_pos,
+#           label = ifelse(avg_mort >= 0.05, label, "")),
+#       size = 4, fontface = "bold", family = "dm_sans", color = "black"
+#     ) +
+#     
+#     # Labels outside for small slices
+#     geom_text(
+#       aes(y = cum_pos,
+#           label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, label, "")),
+#        x = 1.6,
+#       size = 4, fontface = "bold", family = "dm_sans", color = "black"
+#     ) +
+#     
+#     coord_polar(theta = "y", clip = "off") +
+#     scale_fill_manual(values = custom_pal, name = "Fishery Region") +
+#     ggtitle(pop) +                             # population name as title
+#     theme_void() +
+#     theme(
+#       plot.title        = element_text(family = "dm_sans", size = 11,
+#                                        face = "bold", hjust = 0.5),
+#       legend.title      = element_text(family = "dm_sans", size = 10, face = "bold"),
+#       legend.text       = element_text(family = "dm_sans", size = 9),
+#       legend.margin     = margin(t = 10, b = -10, unit = "mm"),
+#       legend.key.size   = unit(0.4, "cm"),
+#       legend.spacing.x  = unit(0.2, "cm"),
+#       plot.margin       = margin(0, 5, 0, 5, "mm"),
+#       plot.background   = element_blank()
+#     )
+# })
+# 
+# # Name the list so you can access by population name
+# names(population_pies) <- populations
+# 
+# # Step 4: View one
+# # population_pies[["Taku"]]
+# 
+# # Step 5 (optional): Combine into a grid with patchwork
+# library(patchwork)
+# wrap_plots(population_pies, guides = "collect")
+# 
+# # Save all population pies to a single multi-page PDF
+# 
+# pdf_path <- "output/plots/Chinook_population_pies.pdf"
+# 
+# pdf(pdf_path, width = 8, height = 8)  # adjust dimensions as needed
+#  
+# for (pop in levels(pie_df2$population)) {
+#   print(population_pies[[pop]])
+# }
+# 
+# dev.off()
+#   
 # Map Plot with Pie Charts ===========
 library(sf) 
 library(scatterpie)  
@@ -347,100 +347,100 @@ puget_sog <- c("Nooksack", "Skagit Spring", "Skagit Fall", "Stillaguamish",
 
   pie_main <- pie_coords %>% filter(!population %in% puget_sog)
 pie_inset <- pie_coords %>% filter(population %in% puget_sog)
-
 # 
-# # temporary just for an exmaple plot for matt 
-# puget_sog <- c("Stikine", "Unuk", 
-#                "Atnarko","Kaouk Fall","Tahsish Fall", "Artlish Fall", "Megin Fall", "Moyeha Fall",       
-#                "South Thompson","Nicola", "Quillayute Fall",      
-#                "Hoh Spring",          
-#                "Hoh Fall",             
-#                "Queets Spring", 
-#                "Grays Harbor Fall",     
-#                "Grays",               
-#                "Phillips", "Lewis",  
-#                "Coweeman",        
-#                "Elochoman", 
-#                "Siuslaw Fall",           
-#                "South Umpqua",         
-#                "Coquille",    
-#                "Nooksack", "Skagit Spring", "Skagit Fall", "Stillaguamish",
-#                "Snohomish Fall", "Green", "Nisqually", "Cowichan", 
-#                "Puntledge Summer")
+# # 
+# # # temporary just for an exmaple plot for matt 
+# # puget_sog <- c("Stikine", "Unuk", 
+# #                "Atnarko","Kaouk Fall","Tahsish Fall", "Artlish Fall", "Megin Fall", "Moyeha Fall",       
+# #                "South Thompson","Nicola", "Quillayute Fall",      
+# #                "Hoh Spring",          
+# #                "Hoh Fall",             
+# #                "Queets Spring", 
+# #                "Grays Harbor Fall",     
+# #                "Grays",               
+# #                "Phillips", "Lewis",  
+# #                "Coweeman",        
+# #                "Elochoman", 
+# #                "Siuslaw Fall",           
+# #                "South Umpqua",         
+# #                "Coquille",    
+# #                "Nooksack", "Skagit Spring", "Skagit Fall", "Stillaguamish",
+# #                "Snohomish Fall", "Green", "Nisqually", "Cowichan", 
+# #                "Puntledge Summer")
+# # 
+# #  pie_main <- pie_coords %>% filter(!population %in% puget_sog)
 # 
-#  pie_main <- pie_coords %>% filter(!population %in% puget_sog)
-
-region_cols <- names(custom_pal)  # your broad_region columns
-
-main_map <- ggplot() +
-  geom_sf(data = coast, fill = "grey85", color = "grey50", linewidth = 0.3) +
-  # Main map — bump up from 1.8 to 3.5
-  geom_scatterpie(
-    data = pie_main,
-    aes(x = lon, y = lat, group = population),
-    cols = region_cols,
-    pie_scale = 3.5,       # <-- increased
-    color = "black",
-    linewidth = 0.3,
-    alpha = 0.9
-  )+
-  geom_text(
-    data = pie_main,
-    aes(x = lon, y = lat, label = population),
-    nudge_y = 0.6, size = 2.5, family = "dm_sans"
-  ) +
-  scale_fill_manual(values = custom_pal, name = "Fishery Region") +
-    coord_sf(xlim = c(-142, -115), ylim = c(42, 61))+
-# OG    coord_sf(xlim = c(-136, -117), ylim = c(42, 60)) +
-  theme_void() +
-  theme(
-    legend.position = "bottom",
-    legend.title    = element_text(family = "dm_sans", size = 10, face = "bold"),
-    legend.text     = element_text(family = "dm_sans", size = 9)
-  )
-
-main_map
-
-ggsave("output/plots/FM_Map.png", width = 6, height =4, bg = "white")
-
-
-## Salish Sea Map =====
-inset_map <- ggplot() +
-  geom_sf(data = coast, fill = "grey85", color = "grey50", linewidth = 0.3) +
-  geom_scatterpie(
-    data = pie_inset,
-    aes(x = lon, y = lat, group = population_label),
-    cols = region_cols,
-    pie_scale = 1.2,
-    color = "black",
-    linewidth = 0.3,
-    alpha = 0.9
-  ) +
-  geom_text(
-    data = pie_inset,
-    aes(x = lon, y = lat, label = population_label),
-    nudge_y = 0.25, size = 2.5, family = "dm_sans"
-  ) +
-  scale_fill_manual(values = custom_pal, name = "Fishery Region") +
-  coord_sf(xlim = c(-124, -121.5), ylim = c(47, 50)) +
-  theme_void() +
-  theme(legend.position = "none")
-
-# combine ======
-final_map <- ggdraw(main_map) +
-  draw_plot(
-    inset_map,
-    x = 0.62, y = 0.15,   # position on main map (tweak as needed)
-    width = 0.35, height = 0.35
-  ) +
-  draw_label("Puget Sound &\nStrait of Georgia", 
-             x = 0.79, y = 0.49, size = 8, fontface = "bold", family = "dm_sans")
-
-# Save
-ggsave("population_pie_map.pdf", final_map, width = 12, height = 16, units = "in")
+ region_cols <- names(custom_pal)  # your broad_region columns
+# 
+# main_map <- ggplot() +
+#   geom_sf(data = coast, fill = "grey85", color = "grey50", linewidth = 0.3) +
+#   # Main map — bump up from 1.8 to 3.5
+#   geom_scatterpie(
+#     data = pie_main,
+#     aes(x = lon, y = lat, group = population),
+#     cols = region_cols,
+#     pie_scale = 3.5,       # <-- increased
+#     color = "black",
+#     linewidth = 0.3,
+#     alpha = 0.9
+#   )+
+#   geom_text(
+#     data = pie_main,
+#     aes(x = lon, y = lat, label = population),
+#     nudge_y = 0.6, size = 2.5, family = "dm_sans"
+#   ) +
+#   scale_fill_manual(values = custom_pal, name = "Fishery Region") +
+#     coord_sf(xlim = c(-142, -115), ylim = c(42, 61))+
+# # OG    coord_sf(xlim = c(-136, -117), ylim = c(42, 60)) +
+#   theme_void() +
+#   theme(
+#     legend.position = "bottom",
+#     legend.title    = element_text(family = "dm_sans", size = 10, face = "bold"),
+#     legend.text     = element_text(family = "dm_sans", size = 9)
+#   )
+# 
+# main_map
+# 
+# ggsave("output/plots/FM_Map.png", width = 6, height =4, bg = "white")
+# 
+# 
+# ## Salish Sea Map =====
+# inset_map <- ggplot() +
+#   geom_sf(data = coast, fill = "grey85", color = "grey50", linewidth = 0.3) +
+#   geom_scatterpie(
+#     data = pie_inset,
+#     aes(x = lon, y = lat, group = population_label),
+#     cols = region_cols,
+#     pie_scale = 1.2,
+#     color = "black",
+#     linewidth = 0.3,
+#     alpha = 0.9
+#   ) +
+#   geom_text(
+#     data = pie_inset,
+#     aes(x = lon, y = lat, label = population_label),
+#     nudge_y = 0.25, size = 2.5, family = "dm_sans"
+#   ) +
+#   scale_fill_manual(values = custom_pal, name = "Fishery Region") +
+#   coord_sf(xlim = c(-124, -121.5), ylim = c(47, 50)) +
+#   theme_void() +
+#   theme(legend.position = "none")
+# 
+# # combine ======
+# final_map <- ggdraw(main_map) +
+#   draw_plot(
+#     inset_map,
+#     x = 0.62, y = 0.15,   # position on main map (tweak as needed)
+#     width = 0.35, height = 0.35
+#   ) +
+#   draw_label("Puget Sound &\nStrait of Georgia", 
+#              x = 0.79, y = 0.49, size = 8, fontface = "bold", family = "dm_sans")
+# 
+# # Save
+# ggsave("population_pie_map.pdf", final_map, width = 12, height = 16, units = "in")
 
 
-# BETTER PLOT  ====
+# Figure 2 - Best Map ====
 library(packcircles) 
 
 # 1. Define TRUE river mouth coordinates (for leader lines)
@@ -550,7 +550,7 @@ pie_coords_repelled <- pie_coords %>%
                            "Queets", "Quillayute Fall",  "Coquille"))
 
  
-# 5. Build the map
+# 5. Build the map =============
 main_map <- ggplot() +
   geom_sf(data = coast, aes(fill = broad_region), color = "lightgray", linewidth = 0.3) +
   scale_fill_manual(values = custom_pal_map, guide = "none") +  # guide="none" hides state fill from legend
@@ -584,7 +584,8 @@ main_map <- ggplot() +
   geom_text(
     data = pie_coords_repelled,
     aes(x = lon, y = lat+0.5, label = population),
-    nudge_y = 0.7, size = 2.3, family = "dm_sans"
+    nudge_y = 0.7, size = 3, 
+    family = "dm_sans"
   ) +
   
   scale_fill_manual(values = custom_pal, name = "Fishery Region") +
@@ -592,11 +593,16 @@ main_map <- ggplot() +
   theme_void() +
   theme(
     legend.position = "left",
-    legend.title    = element_text(family = "dm_sans", size = 10, face = "bold"),
-    legend.text     = element_text(family = "dm_sans", size = 9)
+    # legend.title    = element_text(family = "dm_sans", size = 10, face = "bold"),
+    # legend.text     = element_text(family = "dm_sans", size = 9)
   )
 
 main_map
 # Save
-ggsave("output/plots/population_pie_map.png", width = 7, height = 7,bg = "white")
+# ggsave("output/plots/population_pie_map.png", width = 7, height = 7,bg = "white")
 
+# save map ==== 
+png("output/plots/population_pie_map.png", 
+    width = 1500, height = 800, res = 150)
+print(main_map)   # print() needed for ggplot objects
+dev.off()

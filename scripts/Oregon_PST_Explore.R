@@ -1,5 +1,6 @@
 # Kirk and Will asked to look at if the 12% reduction in AK Catch durign the last treaty resulted in any changes in 
 # returning fish to OR. 
+# made a bunch of plots for PST ODFW meeting. July 2027 
 
 # Look at individual stocks for this  
 
@@ -1191,7 +1192,7 @@ ggsave(
     labs(
       title    = "Total run size by population",
       subtitle = "Amber line = 2009–2018 mean  |  Red line = post-2019 mean",
-      x = NULL, y = "Total run (thousands of fish)"
+      x = NULL, y = "Total run (thousands of fish)", legend = " "
     ) +
     base_theme
   p_run
@@ -1331,7 +1332,6 @@ ggsave(
   
   p_ak_ER
   ggsave("output/plots/OR_AK_Chinook_Catch_P3.png",width = 6, height = 4)
-  
   
   # Best Plots, Sent to Kirk =================
   # Group Oregon Coast ==== 
@@ -1486,9 +1486,10 @@ ggsave(
     scale_y_continuous(labels = scales::comma) +
     labs(
       title    = "AK catch of OR Coast Chinook (all stocks combined)",
-      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean ",
-      x = NULL, y = "AK catch (thousands of fish)"
-    ) #+
+      subtitle = "Amber = 2009–2018 mean  |  Red = 2019-2022 mean ",
+      x = NULL, y = "AK catch (thousands of fish)", fill = " "
+    ) +
+    theme_minimal()
     #base_theme
   
   p_ak_catch
@@ -1514,7 +1515,7 @@ ggsave(
     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     labs(
       title    = "AK share of total catch — OR Coast Chinook (all stocks combined)",
-      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      subtitle = "Amber = 2009–2018 mean  |  Red = 2019-2022 mean",
       x = NULL, y = "Percent total catch", fill = " "
     ) +
     theme_minimal()
@@ -1543,7 +1544,7 @@ ggsave(
     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     labs(
       title    = "AK Exploitation Rate — OR Coast Chinook (all stocks combined)",
-      subtitle = "Amber = 2009–2018 mean  |  Red = post-2019 mean",
+      subtitle = "Amber = 2009–2018 mean | Red = 2019-2022 mean",
       x = NULL, y = "Exploitation Rate", fill = ""
     ) +
     theme_minimal()
@@ -1633,7 +1634,7 @@ ggsave(
     scale_y_continuous(labels = scales::comma) +
     labs(
       title    = "BC catch of OR Coast Chinook (all stocks combined)",
-      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = 2019-2022 mean",
       x = NULL, y = "BC catch (thousands of fish)"
     ) + theme_minimal() #+
     #base_theme
@@ -1661,8 +1662,8 @@ ggsave(
     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     labs(
       title    = "BC share of total catch — OR Coast Chinook (all stocks combined)",
-      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
-      x = NULL, y = "BC catch / total catch"
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = 2019-2022 mean",
+      x = NULL, y = "BC catch / total catch",fill = " "
     ) + theme_minimal() 
   
   p_bc_share
@@ -1688,8 +1689,8 @@ ggsave(
     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
     labs(
       title    = "BC Exploitation Rate — OR Coast Chinook (all stocks combined)",
-      subtitle = "Light green = 2009–2018 mean  |  Dark green = post-2019 mean",
-      x = NULL, y = "BC catch / total run size"
+      subtitle = "Light green = 2009–2018 mean  |  Dark green = 2019-2022 mean",
+      x = NULL, y = "Exploitation Rate",fill = " "
     ) + theme_minimal() 
   
   p_bc_ER
