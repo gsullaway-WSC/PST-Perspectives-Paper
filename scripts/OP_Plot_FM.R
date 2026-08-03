@@ -2,11 +2,10 @@ library(tidyverse)
 library(here)
 library(readxl)
 library(viridis)
-library(cowplot) 
-install.packages("showtext")
+library(cowplot)  
 library(showtext)
-font_add_google("DM Sans", "dm_sans")
-showtext_auto()
+ font_add_google("DM Sans", "dm_sans")
+ showtext_auto()
  
 
 # custom colors =====
@@ -313,6 +312,101 @@ ggsave(
   bg = "transparent"
 )
  
+### 2.75 Two Treaty Periods - OP Pie Stand Alone ==========
+# have to do separate because the facet and pie charts get weird
+pie_df3 <- OP_plot_df %>%
+  filter(year > 2007 & year <2019) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%
+  dplyr::mutate(
+    custom_region = case_when(broad_region == "Alaska" ~ "AK",
+                              broad_region == "British Columbia" ~ "BC",
+                              broad_region == "Puget Sound" ~ "PS",
+                              broad_region == "Washington Coast\nOcean" ~ "WA Ocean",
+                              broad_region == "Washington Coast\nIn-River" ~ "WA In-River",
+                              TRUE ~ NA), 
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,
+    label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
+  ) 
+ 
+OP_pie3 <- ggplot(pie_df3, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) + 
+  # Labels inside for large slices
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort >= 0.05, paste0(label), "")),
+            size = 4, fontface = "bold", family = "dm_sans",color = "black") + 
+  # Labels outside for small slices — nudge x past 1 to push outside pie
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, paste0(label), "")),
+            x = 1.7,   # >1 pushes outside the pie (pie lives at x = 1)
+            size = 2.6, fontface = "bold", family = "dm_sans",color = "black") + 
+  coord_polar(theta = "y", clip = "off") +   
+  scale_fill_manual(values = custom_pal, name = "Fishery Region") +  
+  theme_void() +
+  theme(
+    legend.position   = "none",
+    legend.title      = element_text(family = "dm_sans",size = 10, face = "bold"),
+    legend.text       = element_text(family = "dm_sans",size = 9),
+    legend.margin     = margin(t = 10, b = -10, unit = "mm"),  # positive t pushes down, negative b pulls pie up
+    legend.key.size   = unit(0.4, "cm"),   # smaller legend keys
+    legend.spacing.x  = unit(0.2, "cm"),   # tighten horizontal spacing
+    plot.margin       = margin(0, 5, 0, 5, "mm"),  # reduce outer margins
+    plot.background   = element_blank()
+  )+
+  ggtitle("Treaty Period: 2008-2018")
+
+OP_pie3
+
+# have to do separate because the facet and pie charts get weird
+pie_df4 <- OP_plot_df %>%
+  filter(year >2018) %>% 
+  group_by(broad_region) %>%
+  summarise(avg_mort = mean(percent_mort, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(broad_region)) %>%
+  dplyr::mutate(
+    custom_region = case_when(broad_region == "Alaska" ~ "AK",
+                              broad_region == "British Columbia" ~ "BC",
+                              broad_region == "Puget Sound" ~ "PS",
+                              broad_region == "Washington Coast\nOcean" ~ "WA Ocean",
+                              broad_region == "Washington Coast\nIn-River" ~ "WA In-River",
+                              TRUE ~ NA), 
+    cum_pos = cumsum(avg_mort) - avg_mort / 2,
+    label = paste0(custom_region, "\n", round(avg_mort * 100, 1), "%")  # combined label
+  )  %>%
+  filter(!is.na(custom_region)) # removing a super small % that is south of falcon 
+
+
+OP_pie4 <- ggplot(pie_df4, aes(x = "", y = avg_mort, fill = broad_region)) +
+  geom_col(color = "black", alpha = 0.9, width = 1) + 
+  # Labels inside for large slices
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort >= 0.05, paste0(label), "")),
+            size = 4, fontface = "bold", family = "dm_sans",color = "black") + 
+  # Labels outside for small slices — nudge x past 1 to push outside pie
+  geom_text(aes(y = cum_pos,
+                label = ifelse(avg_mort < 0.05 & avg_mort > 0.001, paste0(label), "")),
+            x = 1.7,   # >1 pushes outside the pie (pie lives at x = 1)
+            size = 2.6, fontface = "bold", family = "dm_sans",color = "black") + 
+  coord_polar(theta = "y", clip = "off") +   
+  scale_fill_manual(values = custom_pal, name = "Fishery Region") +  
+  theme_void() +
+  theme(
+    legend.position   = "none",
+    legend.title      = element_text(family = "dm_sans",size = 10, face = "bold"),
+    legend.text       = element_text(family = "dm_sans",size = 9),
+    legend.margin     = margin(t = 10, b = -10, unit = "mm"),  # positive t pushes down, negative b pulls pie up
+    legend.key.size   = unit(0.4, "cm"),   # smaller legend keys
+    legend.spacing.x  = unit(0.2, "cm"),   # tighten horizontal spacing
+    plot.margin       = margin(0, 5, 0, 5, "mm"),  # reduce outer margins
+    plot.background   = element_blank()
+  )+
+  ggtitle("Treaty Period: 2018-2022")
+
+OP_pie4
+
 
 ##  3. Main bar chart ==================
 OP_FM_stacked <- ggplot(OP_plot_df,
