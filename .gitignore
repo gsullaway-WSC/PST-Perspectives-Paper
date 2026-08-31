@@ -43,3 +43,6 @@ output/plots/
 notes/.DS_Store
 output/.DS_Store
 .RDataTmp
+scripts_pri/
+output_pri/
+data_pri/

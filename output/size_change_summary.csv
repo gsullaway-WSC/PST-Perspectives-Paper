@@ -1,4 +1,0 @@
-"ocean_age","first_catch_year","last_catch_year","first_5_catch_years","last_5_catch_years","total_change_mm","change_per_decade_mm","reference_catch_year","change_from_reference_mm","years_from_reference"
-2,1983,2023,"1983, 1984, 1985, 1986, 1987","2019, 2020, 2021, 2022, 2023",-36.1,-9,1990,-43.8,33
-3,1984,2023,"1984, 1985, 1986, 1987, 1988","2019, 2020, 2021, 2022, 2023",-46.1,-11.8,1990,-40.1,33
-4,1985,2023,"1985, 1986, 1987, 1988, 1989","2019, 2020, 2021, 2022, 2023",-98.1,-25.8,1990,-101.8,33
