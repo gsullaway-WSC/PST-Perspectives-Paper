@@ -2,7 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-data
 *.RDS
 .RDataTmp
 .RDataTmp
@@ -11,38 +10,11 @@ data
 .RDataTmp
 .RDataTmp1
 .RDataTmp2
-notes/Coho Reports and Esc Goals/Clarke et al 1994 AK.pdf
-notes/Coho Reports and Esc Goals/Heinl et al 2017 AK.pdf
-notes/Coho Reports and Esc Goals/Shaul et al 2019.pdf
-notes/OC Chinook PST_Final Draft.pdf
-notes/OP Chinook PST_Final Draft.pdf
-notes/PST Committee Reports/Pacific-Salmon-Treaty (1).pdf
-notes/PST Committee Reports/TCCHINOOK-25-02-Appendix-B-Escapement-Detailed (1).xlsx
-notes/PST Committee Reports/TCCHINOOK-25_EG.pdf
-notes/PST Committee Reports/TCCHINOOK-26_ER.pdf
-notes/PST Committee Reports/TCCHUM-26-01.pdf
-notes/PST Committee Reports/TCCOHO-13-1.pdf
-notes/PST Committee Reports/TCFR-89-1.pdf
-notes/PST Committee Reports/TCNB-26-02.pdf
-notes/PST Committee Reports/TCTR-25-04.pdf
-notes/PST Committee Reports/TCTR-26-01.pdf
-notes/PST Committee Reports/YUKON-JTC-26-01-2025-Season-Review-2026-Outlook.pdf
-notes/PST Committee Reports/Yukon02-1.pdf
-notes/PST Stories_OP Chinook Template_GS.pptx
-notes/Steelhead Reports/AK_steelhead_report.pdf
-notes/Steelhead Reports/Area3-Nass Salmon and Summer-run Steelhead Analyses Report_Final_30Sep23.pdf
-notes/Steelhead Reports/DFO Tech Report\#3719 2025_Nass Mark-recapture Review (sock, chin, coho, steelhead)_1992-2019.pdf
-Supplemental Material list.pdf
-esc_summary_check.csv
-notes/PST Stories_OP Chinook Template_GS.pptx
-.RDataTmp
 notes/
-output/plots/
-.RDataTmp
-.RDataTmp
 notes/.DS_Store
-output/.DS_Store
 .RDataTmp
 scripts_pri/
 output_pri/
 data_pri/
+scripts_pri
+notes
