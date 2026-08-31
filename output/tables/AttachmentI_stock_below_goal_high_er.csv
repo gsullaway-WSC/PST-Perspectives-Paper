@@ -1,0 +1,35 @@
+population,region,mean_er,n_years_below_goal_high_er,years_below_goal_high_er,mean_er_when_below,n_years_below_psc85_high_er,years_below_psc85_high_er,mean_er_when_below_psc85
+Coweeman,LCR,0.448,4,"2005, 2014, 2017, 2018",0.515,4,"2005, 2014, 2017, 2018",0.515
+Lewis,LCR,0.312,1,2008,0.341,1,2008,0.341
+Columbia Upriver Brights,MCR,0.325,0,NA,NA,0,NA,NA
+Atnarko,NBC,0.316,0,NA,NA,0,NA,NA
+Nehalem Fall,OC,0.387,3,"2006, 2007, 2009",0.469,3,"2006, 2007, 2009",0.469
+Siletz Fall,OC,0.387,2,"2007, 2009",0.42,1,2007,0.424
+Siuslaw Fall,OC,0.387,1,2018,0.701,1,2018,0.701
+Grays Harbor Fall,OP,0.447,2,"2009, 2013",0.532,0,NA,NA
+Hoh Fall,OP,0.447,0,NA,NA,0,NA,NA
+Queets Fall,OP,0.445,2,"2007, 2018",0.581,0,NA,NA
+Quillayute Fall,OP,0.447,0,NA,NA,0,NA,NA
+Coquille,ORC,0.22,3,"2018, 2019, 2021",0.256,2,"2019, 2021",0.261
+South Umpqua,ORC,0.22,0,NA,NA,0,NA,NA
+Nooksack,PS,0.377,0,NA,NA,0,NA,NA
+Skagit Spr,PS,0.258,10,"2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2014",0.303,10,"2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2014",0.303
+Skagit SumFall,PS,0.327,5,"2000, 2014, 2015, 2017, 2018",0.488,3,"2000, 2014, 2018",0.449
+Snohomish,PS,0.299,0,NA,NA,0,NA,NA
+Stillaguamish,PS,0.35,2,"2014, 2015",0.536,2,"2014, 2015",0.536
+Cowichan,SBC,0.551,5,"2006, 2008, 2009, 2010, 2014",0.627,5,"2006, 2008, 2009, 2010, 2014",0.627
+Harrison,SBC,0.401,3,"2000, 2008, 2017",0.498,3,"2000, 2008, 2017",0.498
+Lower Shuswap,SBC,0.384,0,NA,NA,0,NA,NA
+Nicola,SBC,0.097,0,NA,NA,0,NA,NA
+Phillips,SBC,0.31,0,NA,NA,0,NA,NA
+Chilkat,SEAK,0.163,1,2013,0.187,0,NA,NA
+Stikine,SEAK,0.102,2,"2017, 2021",0.104,2,"2017, 2021",0.104
+Taku,SEAK,0.045,4,"2012, 2015, 2017, 2021",0.082,2,"2017, 2021",0.064
+Unuk,SEAK,0.21,3,"2012, 2013, 2016",0.421,1,2013,0.331
+Artlish_fa,WCVI,0.416,0,NA,NA,0,NA,NA
+Bedwell_fa,WCVI,0.35,0,NA,NA,0,NA,NA
+Colonial_fa,WCVI,0.416,0,NA,NA,0,NA,NA
+Kaouk_fa,WCVI,0.416,0,NA,NA,0,NA,NA
+Megin_fa,WCVI,0.35,0,NA,NA,0,NA,NA
+Moyeha_fa,WCVI,0.35,0,NA,NA,0,NA,NA
+Tahsish_fa,WCVI,0.416,0,NA,NA,0,NA,NA

@@ -1,19 +1,19 @@
 period,category,metric,value
-2009-2018,Below Escapement Goal & Above Mean ER,% of population-years,15.7
-2009-2018,Below Escapement Goal & Above Mean ER,N population-years,45
-2009-2018,Below Escapement Goal & Above Mean ER,N unique populations,21
-2009-2018,Below Escapement Goal & Above Mean ER,Populations,"Atnarko, Chilkat, Coquille, Coweeman, Cowichan, Grays Harbor Fall, Harrison, Lewis, Lower Shuswap, Nehalem Fall, Queets Fall, Queets SprSum, Quillayute Fall, Siletz Fall, Siuslaw Fall, Skagit Spr, Skagit SumFall, Stikine, Stillaguamish, Taku, Unuk"
-2009-2018,Below PSC 85% Goal & Above Mean ER,% of population-years,9.8
-2009-2018,Below PSC 85% Goal & Above Mean ER,N population-years,28
-2009-2018,Below PSC 85% Goal & Above Mean ER,N unique populations,16
-2009-2018,Below PSC 85% Goal & Above Mean ER,Populations,"Coquille, Coweeman, Cowichan, Grays Harbor Fall, Harrison, Lower Shuswap, Nehalem Fall, Queets Fall, Queets SprSum, Siuslaw Fall, Skagit Spr, Skagit SumFall, Stikine, Stillaguamish, Taku, Unuk"
-2009-2018,Overall,N population-years,286
-2019-Present,Below Escapement Goal & Above Mean ER,% of population-years,10.3
-2019-Present,Below Escapement Goal & Above Mean ER,N population-years,15
-2019-Present,Below Escapement Goal & Above Mean ER,N unique populations,11
-2019-Present,Below Escapement Goal & Above Mean ER,Populations,"Coquille, Grays Harbor Fall, Nehalem Fall, Queets Fall, Queets SprSum, Siuslaw Fall, Snohomish, South Umpqua, Stikine, Taku"
-2019-Present,Below PSC 85% Goal & Above Mean ER,% of population-years,9
-2019-Present,Below PSC 85% Goal & Above Mean ER,N population-years,13
-2019-Present,Below PSC 85% Goal & Above Mean ER,N unique populations,9
-2019-Present,Below PSC 85% Goal & Above Mean ER,Populations,"Coquille, Nehalem Fall, Queets Fall, Queets SprSum, Siuslaw Fall, South Umpqua, Stikine, Taku"
-2019-Present,Overall,N population-years,145
+2009-2018,"Below Escapement Goal & Above Mean ER, Same Year",% of population-years,17.4
+2009-2018,"Below Escapement Goal & Above Mean ER, Same Year",N population-years,33
+2009-2018,"Below Escapement Goal & Above Mean ER, Same Year",N unique populations,14
+2009-2018,"Below Escapement Goal & Above Mean ER, Same Year",Populations,"Atnarko, Chilkat River, Cowichan River Fall, Harrison River, Lower Shuswap, Nehalem Fall, Queets Fall, Quillayute Fall, Siletz Fall, Siuslaw Fall, Skagit SumFall, Stikine River, Taku River, Unuk"
+2009-2018,"Below PSC 85% Goal & Above Mean ER, Same Year",% of population-years,11.6
+2009-2018,"Below PSC 85% Goal & Above Mean ER, Same Year",N population-years,22
+2009-2018,"Below PSC 85% Goal & Above Mean ER, Same Year",N unique populations,10
+2009-2018,"Below PSC 85% Goal & Above Mean ER, Same Year",Populations,"Cowichan River Fall, Harrison River, Lower Shuswap, Nehalem Fall, Queets Fall, Siletz Fall, Siuslaw Fall, Skagit SumFall, Taku River, Unuk"
+2009-2018,Overall,N population-years,190
+2019-2023,"Below Escapement Goal & Above Mean ER, Same Year",% of population-years,10.5
+2019-2023,"Below Escapement Goal & Above Mean ER, Same Year",N population-years,10
+2019-2023,"Below Escapement Goal & Above Mean ER, Same Year",N unique populations,6
+2019-2023,"Below Escapement Goal & Above Mean ER, Same Year",Populations,"Harrison River, Nehalem Fall, Queets Fall, Siuslaw Fall, Stikine River, Taku River"
+2019-2023,"Below PSC 85% Goal & Above Mean ER, Same Year",% of population-years,10.5
+2019-2023,"Below PSC 85% Goal & Above Mean ER, Same Year",N population-years,10
+2019-2023,"Below PSC 85% Goal & Above Mean ER, Same Year",N unique populations,6
+2019-2023,"Below PSC 85% Goal & Above Mean ER, Same Year",Populations,"Harrison River, Nehalem Fall, Queets Fall, Siuslaw Fall, Stikine River, Taku River"
+2019-2023,Overall,N population-years,95

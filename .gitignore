@@ -40,3 +40,6 @@ notes/
 output/plots/
 .RDataTmp
 .RDataTmp
+notes/.DS_Store
+output/.DS_Store
+.RDataTmp
