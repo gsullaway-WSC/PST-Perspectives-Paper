@@ -11,8 +11,10 @@ library(tidyverse)
  
 data <- read_csv(here("data/PSC_CTC_Chinook_master_table_long.csv"))
 
+unique(data[c("population", "region")])
+
 # Home jurisdiction for each of the 20 indicator stocks ----------------
-# Stikine, Taku, and Unuk rivers originate mostly in BC even though their
+# Stikine, Taku rivers originate mostly in BC even though their
 # mouths (and terminal fisheries) are in Southeast Alaska, so, their home
 # jurisdiction is coded as British Columbia (flagged with * in plot labels because they are transboundary).
 # Columbia River stocks are coded Washington due to the specific stocks included. 
@@ -20,7 +22,7 @@ data <- read_csv(here("data/PSC_CTC_Chinook_master_table_long.csv"))
 home_lookup <- tribble(
   ~population,                      ~home_jurisdiction,     ~population_clean,
   "Chilkat River",                  "Alaska",               "Chilkat",
-  "Unuk River",                     "British Columbia",     "Unuk*",
+  "Unuk River",                     "Alaska",               "Unuk",
   "Stikine River",                  "British Columbia",     "Stikine*",
   "Taku River",                     "British Columbia",     "Taku*",
   "Atnarko River",                  "British Columbia",     "Atnarko",
@@ -52,11 +54,8 @@ region_group_lookup <- tribble(
 ) %>% 
   mutate(region_group = factor(region_group, levels = c("AK", "BC", "WA", "OR")))
 
-#   Fishery jurisdiction ----------------------------
-# Map the fishery to jurisdiction that actually catches the fish.
-# US terminal catch (`usterm_*`) is handled separately below because which
-# US jurisdiction it represents depends on the stock (e.g., WA/OR
-# terminal-area fisheries for that state's own stocks.
+#   Fishery jurisdiction =============
+# Map the fishery to jurisdiction that catches the fish. 
 
 fishery_jurisdiction_lookup <- tribble(
   ~fishery,       ~fishery_jurisdiction,
@@ -87,9 +86,7 @@ fishery_jurisdiction_lookup <- tribble(
   "sfalc_s",      "Oregon"
 )
 
-# US terminal (`usterm_*`) catching jurisdiction, by population.
-# For AK-mouth transboundary stocks this is effectively always 0 (their
-# terminal catch shows up under seakterm_*, not usterm_*).
+# US terminal (`usterm_*`) catching jurisdiction by population. 
 usterm_jurisdiction_lookup <- home_lookup %>%
   mutate(usterm_jurisdiction = case_when(
     population %in% c("Chilkat River", "Unuk River", "Stikine River", "Taku River") ~ "Alaska",
@@ -255,6 +252,5 @@ b <- ggplot(er_diff_data_p2, aes(x = ER_diff, y = fct_reorder(population_clean, 
 
 fig_2 <- ggpubr::ggarrange(a, b, labels = c("A.", "B."), ncol = 2)
  
-#
 ggsave("output/plots/Figure_2.jpeg", fig_2, width = 12, height = 7)
 

@@ -86,7 +86,7 @@ stock_xwalk <- tribble(
   "NSF adj", "Nooksack Spring Fingerling (Adjusted)","Puget Sound"
 )
 
-# STOCK CODE -> river mouth latitude (decimal degrees, WGS84, N positive) =====
+# STOCK CODE -> river mouth latitude =====
  
 river_mouth_lat_xwalk <- tribble(
   ~stock_code,      ~river_mouth_lat,
@@ -153,18 +153,8 @@ river_mouth_lat_xwalk <- tribble(
 
 # STOCK CODES included in the CTC's synoptic stock status evaluation, per
 # Table 3.2 ("Summary of information available for synoptic stock
-# evaluations"), filtered to rows where Data Sufficient == "Yes".
-#
-# Table 3.2 has 21 such rows, but two of them -- Situk and Alsek -- have
-# Exploitation Rate Indicator == "TBD", meaning there is no CWT-based AEQ
-# mortality distribution table for them at all (no "total mort" sheet in
-# Appendix C, no stock_code, no rows in mort_long). They cannot appear in
-# `master` regardless of this filter, so they're excluded here.
-#
-# Upriver Brights is a single row in Table 3.2 but lists TWO exploitation
-# rate indicator codes ("URB / HAN") -- confirmed by the CTC report text:
-# this stock "appears twice ... because there are two exploitation rate
-# indicator stocks (URB and HAN)". Both are included below.
+# evaluations"), filtered to rows where Data Sufficient 
+
 synoptic_stock_codes <- c(
   "CHK", "UNU", "TAK", "STI",              # SEAK / Transboundary (Situk, Alsek excluded -- no mortality data)
   "ATN", "COW",                            # BC

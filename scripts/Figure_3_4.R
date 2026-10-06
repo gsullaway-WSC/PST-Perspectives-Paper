@@ -119,7 +119,7 @@ sufficient_data_populations <- c(
  
 ## Load master data =====
 # Filter to just use stocks in table S2
-master <- read_csv("data/PSC_CTC_Chinook_master_table.csv") %>%
+master <- read_csv("data/PSC_CTC_Chinook_master_table_long.csv") %>%
   filter(!calendar_year > 2023,
          !calendar_year < 2000,
           population %in% sufficient_data_populations,
@@ -159,18 +159,17 @@ population_recode <- tribble(
 
 total_run_df <- master %>%
   left_join(population_recode, by = "stock_code") %>%
-  mutate(population = coalesce(population_old_style, population)) %>%
+  dplyr::mutate(population = coalesce(population_old_style, population)) %>%
   transmute(
     year        = calendar_year,
     population,
     region,                          
-    total_run   = as.numeric(total_run),
     ocean_er    = marine_er / 100,
     terminal_er = terminal_er / 100, 
     esc_tot     = as.numeric(escapement)
   )
 
-# ---- region-code recode onto the existing region_pal / region_order_n_to_s.
+# region-code recode onto the existing region_pal / region_order_n_to_s.
 total_run_df <- total_run_df %>%
   mutate(region = case_when(
     region == "SEAK"          ~ "SEAK",
@@ -198,7 +197,7 @@ esc_goals_selected <- esc_goals %>%
   group_by(year, population) %>%
   slice_min(goal_rank, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  select(-goal_rank)
+  dplyr::select(-goal_rank)
 
 ## Flag when escapement is under the goal and ER is high =====
 joined_df <- total_run_df %>%
@@ -239,7 +238,6 @@ joined_df <- total_run_df %>%
 
  
 # Plots and Tables for Mean benchmarks ======
-
 populations <- unique(joined_df$population)
 
 ## Figure S1  =========
@@ -318,17 +316,13 @@ dev.off()
 
 ## Figure 3 ========
 fig_pops <- c("Unuk", "Lower Shuswap", "Queets Fall", "Siuslaw Fall")  # was "Queets SprSum" -- see note above
-
  
-# One mean-ER label per facet, placed in the upper right of each panel
-mean_er_labels_fig3 <- df_pop %>%
-  distinct(population, mean_er) %>%
-  mutate(label = paste0("Mean ER: ", round(mean_er, 2)))
-
+ 
 plots_fig3 <- lapply(fig_pops, function(pop) {
   
   df_pop <- joined_df %>% filter(population == pop,
                                  !year == 2024)
+  
   esc_goals_fig <- esc_goals_all %>% filter(population == pop,
                                             !year == 2024)
   
@@ -408,115 +402,48 @@ png("output/plots/Figure_3_Paper_Chinook_Coastwide_escapement_by_population.png"
 print(Figure3)   
 dev.off()
 
-## Summary Tables ====
-### Table 1: Stock-level summary =============
-stock_below_goal <- joined_df %>%
-  filter(under_goal_same_year == "Under Esc. Goal", above_avg_er == TRUE) %>%
-  group_by(population, region) %>%
-  summarise(
-    mean_er_threshold          = round(unique(mean_er), 3),
-    n_years_below_goal_high_er = n(),
-    years_below_goal_high_er   = paste(sort(year), collapse = ", "),
-    mean_er_when_below         = round(mean(ocean_er, na.rm = TRUE), 3),
-    .groups = "drop"
-  )
-
-stock_below_psc85 <- joined_df %>%
-  filter(PSC_85_Goal == TRUE, above_avg_er == TRUE) %>%
-  group_by(population, region) %>%
-  summarise(
-    mean_er_threshold           = round(unique(mean_er), 3),
-    n_years_below_psc85_high_er = n(),
-    years_below_psc85_high_er   = paste(sort(year), collapse = ", "),
-    mean_er_when_below_psc85    = round(mean(ocean_er, na.rm = TRUE), 3),
-    .groups = "drop"
-  )
-
-stock_summary_table <- joined_df %>%
-  distinct(population, region, mean_er) %>%
-  mutate(mean_er = round(mean_er, 3)) %>%
-  left_join(stock_below_goal,  by = c("population", "region")) %>%
-  left_join(stock_below_psc85, by = c("population", "region")) %>%
-  dplyr::select(-mean_er_threshold.x, -mean_er_threshold.y) %>%
-  dplyr::mutate(region = factor(region, levels = c((region_order_n_to_s)))) %>%
-  arrange(region, population) %>%
-  mutate(across(starts_with("n_"), ~ replace_na(.x, 0)))
-
-print(stock_summary_table)
-write_csv(stock_summary_table, "output/tables/Table_S2_stock_below_goal_high_er.csv")
-
-### Table 4: Long format =========
-period_totals_long <- joined_df %>%
-  filter(year >= 2009) %>%
-  mutate(
-    period = case_when(
-      year >= 2009 & year <= 2018 ~ "2009-2018",
-      year >= 2019                ~ "2019-2023"
-    )
-  ) %>%
-  group_by(period) %>%
-  summarise(
-    below_goal_n_years      = sum(
-      under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE,
-      na.rm = TRUE),
-    below_goal_n_pops       = n_distinct(
-      population[under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE]),
-    below_goal_pct          = round(below_goal_n_years / n() * 100, 1),
-    below_goal_populations  = paste(
-      sort(unique(population[under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE])),
-      collapse = ", "),
-    below_psc85_n_years     = sum(
-      PSC_85_Goal == TRUE & above_avg_er == TRUE,
-      na.rm = TRUE),
-    below_psc85_n_pops      = n_distinct(
-      population[PSC_85_Goal == TRUE & above_avg_er == TRUE]),
-    below_psc85_pct         = round(below_psc85_n_years / n() * 100, 1),
-    below_psc85_populations = paste(
-      sort(unique(population[PSC_85_Goal == TRUE & above_avg_er == TRUE])),
-      collapse = ", "),
-    total_population_years  = n(),
-    .groups = "drop"
-  ) %>%
-  pivot_longer(
-    cols      = -period,
-    names_to  = "metric",
-    values_to = "value",
-    values_transform = list(value = as.character)
-  ) %>%
-  mutate(
-    category = case_when(
-      str_detect(metric, "below_goal")  ~ "Below Escapement Goal & Above Mean ER, Same Year",
-      str_detect(metric, "below_psc85") ~ "Below PSC 85% Goal & Above Mean ER, Same Year",
-      TRUE                              ~ "Overall"
-    ),
-    metric = case_when(
-      str_detect(metric, "n_years")      ~ "N population-years",
-      str_detect(metric, "n_pops")       ~ "N unique populations",
-      str_detect(metric, "pct")          ~ "% of population-years",
-      str_detect(metric, "populations")  ~ "Populations",
-      metric == "total_population_years" ~ "Total population-years",
-      TRUE                               ~ metric
-    )
-  ) %>%
-  dplyr::select(period, category, metric, value) %>%
-  arrange(period, category, metric)
-
-print(period_totals_long)
-write_csv(period_totals_long,
-          "output/tables/period_totals_long.csv")
-
+ head(joined_df)
 ##  Figure 4 - Plot Comparing Regions and summary stats ===========
-# Step 1: stock-level summary by period (group by population)
-escapement_summary <- joined_df %>%
+# stock-level summary by period (group by population)
+ # rename regions to match table 2 
+
+ region_lookup <- tribble(
+   ~population,                ~region,
+   "Chilkat River",            "SEAK",
+   "Unuk",                     "SEAK",
+   "Taku River",               "TBR",
+   "Stikine River",            "TBR",
+   "Atnarko",                  "BC",
+   "Cowichan River Fall",      "BC",
+   "Lower Shuswap",            "BC",
+   "Harrison River",           "BC",
+   "Skagit Spr",               "WA",
+   "Skagit SumFall",           "WA",
+   "Queets Fall",              "OP",
+   "Quillayute Fall",          "OP",
+   "Hoh Fall",                 "OP",
+   "Columbia Upriver Brights", "COL",
+   "Lewis River Wild",         "COL",
+   "Columbia Summers",         "COL",
+   "Nehalem Fall",             "ORC",
+   "Siletz Fall",              "ORC",
+   "Siuslaw Fall",             "ORC"
+ ) 
+ 
+ escapement_summary <- joined_df %>%
+   dplyr::select(-region) %>%
+   left_join(region_lookup, by = "population") %>%
+   dplyr::mutate(region = factor(region,
+                          levels = rev(c("SEAK", "TBR", "BC", "WA", "OP", "COL", "ORC")))) %>% 
   filter(year >= 2009) %>%
-  mutate(
+  dplyr::mutate(
     period = case_when(
       year >= 2009 & year <= 2018 ~ "2009-2018",
       year >= 2019                ~ "2019-2023"
     )
   ) %>%
   group_by(period, region) %>%
-  summarise(
+   dplyr::summarise(
     total_years                = n(),
     n_below_goal                = sum(under_goal_same_year == "Under Esc. Goal", na.rm = TRUE),
     n_below_goal_above_avg_er   = sum(vulnerable_er == TRUE, na.rm = TRUE),
@@ -533,7 +460,7 @@ p_pct_years <- escapement_summary %>%
     names_to  = "metric",
     values_to = "pct"
   ) %>%
-  mutate(
+  dplyr::mutate(
     metric = case_when(
       metric == "pct_below_goal"              ~ "% population-years below EG" ,
       metric == "pct_below_goal_above_avg_er" ~ "% population-years below EG &\nabove mean ER"
@@ -544,11 +471,11 @@ p_pct_years <- escapement_summary %>%
     )),
     pct    = as.numeric(pct),
     # North at top, South at bottom
-    region = factor(region, levels = rev(region_order_n_to_s))
+    # region = factor(region, levels = rev(region_order_n_to_s))
   ) %>%
   filter(!is.na(region)) %>%
-  ggplot(aes(y = region, x = pct, color = metric)) +
   
+  ggplot(aes(y = region, x = pct, color = metric)) +
   # lollipop stems
   geom_linerange(
     aes(xmin = 0, xmax = pct),
@@ -594,5 +521,105 @@ p_pct_years <- escapement_summary %>%
   )
 
 p_pct_years
-ggsave("output/plots/Fig4_pct_popyr_below_escgoal_by_region_period_lollipop.png",
+ggsave("output/plots/Figure_4.png",
        p_pct_years, width = 11, height = 6)
+
+# Summary / Results Tables ==== 
+## Summary Tables ====
+### Table 1: Stock-level summary =============
+stock_below_goal <- joined_df %>%
+  filter(under_goal_same_year == "Under Esc. Goal", above_avg_er == TRUE) %>%
+  group_by(population, region) %>%
+  summarise(
+    mean_er_threshold          = round(unique(mean_er), 3),
+    n_years_below_goal_high_er = n(),
+    years_below_goal_high_er   = paste(sort(year), collapse = ", "),
+    mean_er_when_below         = round(mean(ocean_er, na.rm = TRUE), 3),
+    .groups = "drop"
+  )
+
+stock_below_psc85 <- joined_df %>%
+  filter(PSC_85_Goal == TRUE, above_avg_er == TRUE) %>%
+  group_by(population, region) %>%
+  summarise(
+    mean_er_threshold           = round(unique(mean_er), 3),
+    n_years_below_psc85_high_er = n(),
+    years_below_psc85_high_er   = paste(sort(year), collapse = ", "),
+    mean_er_when_below_psc85    = round(mean(ocean_er, na.rm = TRUE), 3),
+    .groups = "drop"
+  )
+
+stock_summary_table <- joined_df %>%
+  distinct(population, region, mean_er) %>%
+  mutate(mean_er = round(mean_er, 3)) %>%
+  left_join(stock_below_goal,  by = c("population", "region")) %>%
+  left_join(stock_below_psc85, by = c("population", "region")) %>%
+  dplyr::select(-mean_er_threshold.x, -mean_er_threshold.y) %>%
+  dplyr::mutate(region = factor(region, levels = c((region_order_n_to_s)))) %>%
+  arrange(region, population) %>%
+  mutate(across(starts_with("n_"), ~ replace_na(.x, 0)))
+
+print(stock_summary_table)
+write_csv(stock_summary_table, "output/tables/Table_S1_stock_below_goal_high_er.csv")
+
+### Sums Long Format =========
+period_totals_long <- joined_df %>%
+  filter(year >= 2009) %>%
+  mutate(
+    period = case_when(
+      year >= 2009 & year <= 2018 ~ "2009-2018",
+      year >= 2019                ~ "2019-2023"
+    )
+  ) %>%
+  group_by(period,region) %>%
+  summarise(
+    below_goal_n_years      = sum(
+      under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE,
+      na.rm = TRUE),
+    below_goal_n_pops       = n_distinct(
+      population[under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE]),
+    below_goal_pct          = round(below_goal_n_years / n() * 100, 1),
+    below_goal_populations  = paste(
+      sort(unique(population[under_goal_same_year == "Under Esc. Goal" & above_avg_er == TRUE])),
+      collapse = ", "),
+    below_psc85_n_years     = sum(
+      PSC_85_Goal == TRUE & above_avg_er == TRUE,
+      na.rm = TRUE),
+    below_psc85_n_pops      = n_distinct(
+      population[PSC_85_Goal == TRUE & above_avg_er == TRUE]),
+    below_psc85_pct         = round(below_psc85_n_years / n() * 100, 1),
+    below_psc85_populations = paste(
+      sort(unique(population[PSC_85_Goal == TRUE & above_avg_er == TRUE])),
+      collapse = ", "),
+    total_population_years  = n(),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(
+    cols      = -period,
+    names_to  = "metric",
+    values_to = "value",
+    values_transform = list(value = as.character)
+  ) %>%
+  mutate(
+    category = case_when(
+      str_detect(metric, "below_goal")  ~ "Below Escapement Goal & Above Mean ER, Same Year",
+      str_detect(metric, "below_psc85") ~ "Below PSC 85% Goal & Above Mean ER, Same Year",
+      TRUE                              ~ "Overall"
+    ),
+    metric = case_when(
+      str_detect(metric, "n_years")      ~ "N population-years",
+      str_detect(metric, "n_pops")       ~ "N unique populations",
+      str_detect(metric, "pct")          ~ "% of population-years",
+      str_detect(metric, "populations")  ~ "Populations",
+      metric == "total_population_years" ~ "Total population-years",
+      TRUE                               ~ metric
+    )
+  ) %>%
+  dplyr::select(period, region, category, metric, value) %>%
+  arrange(period, region,category, metric) %>%
+  filter(!category == "Overall")
+
+print(period_totals_long)
+write_csv(period_totals_long,
+          "output/tables/period_totals_long.csv")
+

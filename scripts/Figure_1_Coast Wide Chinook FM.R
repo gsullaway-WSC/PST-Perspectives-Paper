@@ -31,11 +31,11 @@ custom_pal <- c(
 puget_sog <- c(
   "Nooksack Spring Fingerling",
   "Skagit Spring Fingerling",
-  "Skagit Summer Fingerling",   # ASSUMPTION: renamed from "Skagit Fall" -- see note above
+  "Skagit Summer Fingerling",   
   "Stillaguamish Fall Fingerling",
-  "Skykomish Fall Fingerling"   # ASSUMPTION: renamed from "Snohomish Fall" -- SKY is a Snohomish-tributary proxy in master
+  "Skykomish Fall Fingerling"   
 )
-## Short display labels for the map (population name stays the join key
+##  display labels for the map
 label_lookup <- tribble(
   ~population,                       ~label_short,
   
@@ -76,10 +76,25 @@ coast <- ne_states(country = c("united states of america", "canada"),
 ocean <- ne_download(scale = 10, type = "ocean", category = "physical", 
                      returnclass = "sf")
 
-# Load and tidy data ===
+# LOAD AND TIDY DATA ===
 master<-read_csv("data/PSC_CTC_Chinook_master_table_long.csv") %>%
   select(-river_mouth_lat)  
 
+pct_col_names <- c(
+  "seak_t", "seak_n", "seak_s",
+  "nbc_t", "nbc_s",
+  "wcvi_t", "wcvi_s",
+  "nbcis_t", "nbcis_n", "nbcis_s",
+  "sbcis_t", "sbcis_n", "sbcis_s",
+  "nfalc_t", "nfalc_s",
+  "sfalc_t", "sfalc_s",
+  "wac_n",
+  "ps_n", "ps_s",
+  "seakterm_t", "seakterm_n", "seakterm_s",
+  "canterm_n", "canterm_s",
+  "usterm_t", "usterm_n", "usterm_s",
+  "stray", "esc_pct"
+)
 fishery_pct_cols  <- setdiff(pct_col_names, c("stray", "esc_pct"))
 fishery_frac_cols <- paste0("n_", fishery_pct_cols)
 
@@ -87,41 +102,30 @@ catch_distributions <- master %>%
   select(population, region, stock_code, calendar_year, all_of(fishery_frac_cols)) %>%
   pivot_longer(all_of(fishery_frac_cols), names_to = "fishery_region", values_to = "percent_mort") %>%
   filter(!is.na(percent_mort)) %>%
-  # Broad region assignment. Most fishery prefixes are unambiguous regardless of
-  # stock (AABM SEAK/NBC/WCVI, ISBM NBC/SBC, N Falcon, S Falcon, WAC, Puget
-  # Sound, Terminal Canada). Terminal Southern US ("usterm_*") is the one
-  # ambiguous case -- it's reported under a single column set but the actual
-  # fishery location depends on which stock it is (a transboundary stock's
-  # "usterm" harvest happens in SE Alaska, not the Lower 48).  
-  mutate(broad_region = case_when(
-    # Alaska: AABM SEAK + Terminal SEAK are always Alaska regardless of stock
+  mutate(broad_region = case_when( 
     str_detect(fishery_region, "^n_seak_")     ~ "Alaska",
-    str_detect(fishery_region, "^n_seakterm_") ~ "Alaska",
-    # Terminal Southern US column, but stock is actually AK/Transboundary -> Alaska
+    str_detect(fishery_region, "^n_seakterm_") ~ "Alaska", 
     str_detect(fishery_region, "^n_usterm_") &
       population %in% c("Chilkat River", "Stikine River", "Taku River", "Unuk River") ~ "Alaska",
-    
-    # British Columbia: AABM NBC/WCVI, ISBM NBC & CBC / Southern BC, Terminal Canada
-    str_detect(fishery_region, "^n_nbc")      ~ "British Columbia",  # matches nbc_t/nbc_s AND nbcis_t/n/s
+     
+    str_detect(fishery_region, "^n_nbc")      ~ "British Columbia",   
     str_detect(fishery_region, "^n_sbcis_")   ~ "British Columbia",
     str_detect(fishery_region, "^n_wcvi_")    ~ "British Columbia",
     str_detect(fishery_region, "^n_canterm_") ~ "British Columbia",
-    
-    # Washington: ISBM N Falcon, WAC, Puget Sound; Terminal Southern US for WA stocks
+     
     str_detect(fishery_region, "^n_nfalc_")        ~ "Washington",
     fishery_region == "n_wac_n"                    ~ "Washington",
     fishery_region %in% c("n_ps_n", "n_ps_s")      ~ "Washington",
     str_detect(fishery_region, "^n_usterm_") &
       population %in% c("Queets Fall Fingerling", "Quillayute", "Hoh",
                         "Skagit Spring Fingerling", "Skagit Summer Fingerling") ~ "Washington",
-    
-    # Oregon: ISBM S Falcon; Terminal Southern US for OR/Columbia stocks
+     
     str_detect(fishery_region, "^n_sfalc_") ~ "Oregon",
     str_detect(fishery_region, "^n_usterm_") &
       population %in% c("Lewis River Wild", "Columbia River Upriver Bright", "Hanford Wild Brights",
                         "Nehalem", "Siletz", "Siuslaw") ~ "Oregon",
     
-    TRUE ~ "Check"  # unmatched -- inspect before treating as real (e.g. Harrison,
+    TRUE ~ "Check"  # unmatched -- inspect before treating as real (Harrison,
     # Atnarko, Cowichan, Columbia River Summers usterm, if nonzero)
   )) %>% 
   filter(!broad_region == "Check") # a few stocks have US terminal but fishery was in canada cant assign them
@@ -141,7 +145,6 @@ Pop_plot_df <- catch_distributions %>%
       "Washington", "Oregon", "British Columbia", "Alaska", "Check"
     ))
   )
-
 ## Averages across the two time periods ======
 # Two PST Agreement periods: 2009-2018 (2009 PST Agreement) and 2019-present
 # (2019 PST Agreement). 
@@ -164,16 +167,9 @@ period_avg_by_pop <- Pop_plot_df %>%
     n_years = sum(!is.na(percent_mort_share)),
     .groups = "drop"
   )
-
-# Map Plot with Pie Charts ===========
-
-
+ 
 # TRUE RIVER-MOUTH COORDINATES =========
-# These are the actual geographic locations.
-# DO NOT shift these. 
-## Rename populations in true_coords / true_coords_PUGETSOUND / pie_start_coords
-## / north_to_south_order to match master's population names, so these join
-## cleanly on `population`. Coordinates are unchanged -- only names changed. 
+# actual geographic locations - do not adjust 
 
 true_coords <- tribble(
   ~population,                       ~true_lon,  ~true_lat,
@@ -224,9 +220,9 @@ true_coords <- tribble(
   "Coweeman",                         -122.90,    46.12,
   # "Elochoman",                       -123.41,    46.18,
   
-  "Hanford Wild Brights",             -119.49,    46.20,   # ASSUMPTION: shared coord, see note above
-  "Columbia River Upriver Bright",    -119.49,    46.20,   # ASSUMPTION: shared coord, see note above
-  "Columbia River Summers",           -119.49,    46.20,   # ASSUMPTION: shared coord, see note above
+  "Hanford Wild Brights",             -119.49,    46.20,   
+  "Columbia River Upriver Bright",    -119.49,    46.20,   
+  "Columbia River Summers",           -119.49,    46.20,   
   # "Colonial Fall",                   -122.77,    46.10,
   
   "Nehalem",                          -123.92,    45.71,
@@ -241,20 +237,14 @@ true_coords_PUGETSOUND <- tribble(
   ~population,                       ~true_lon,  ~true_lat,
   
   "Skagit Spring Fingerling",         -122.37,    48.32,
-  "Skagit Summer Fingerling",         -122.38,    48.32,   # ASSUMPTION: renamed from "Skagit Fall" -- see note above
+  "Skagit Summer Fingerling",         -122.38,    48.32,    
   "Stillaguamish Fall Fingerling",    -122.38,    48.18,
-  "Skykomish Fall Fingerling",        -122.35,    47.92,   # renamed from "Snohomish Fall" per SKY proxy convention
+  "Skykomish Fall Fingerling",        -122.35,    47.92,    
   "Nooksack Spring Fingerling",       -122.55,    48.78
 )
 
-
-# pie_start_coords ===========
-# These are NOT the real river locations.
-#
-# These are deliberately spread westward into the white space.
-# The true river-mouth coordinates remain in true_coords.
-#
-# Every population in true_coords is included here.
+# PIE_START_COORDS ===========
+# These are not the real river locations, spread westward into the white space.
 
 pie_start_coords <- tribble(
   ~population,                        ~start_lon,  ~start_lat,
@@ -321,9 +311,9 @@ pie_start_coords <- tribble(
   
   # COLUMBIA / INTERIOR
   
-  "Hanford Wild Brights",             -139.0,      45.0,   # ASSUMPTION: shared coord, see note above
-  "Columbia River Upriver Bright",    -139.0,      44.5,   # ASSUMPTION: shared coord, see note above
-  "Columbia River Summers",           -133.0,      45.0,   # ASSUMPTION: shared coord, see note above
+  "Hanford Wild Brights",             -139.0,      45.0,    
+  "Columbia River Upriver Bright",    -139.0,      44.5,    
+  "Columbia River Summers",           -133.0,      45.0,    
   # "Colonial Fall",                   -133.0,      44.8,
   
   # OREGON
@@ -335,10 +325,8 @@ pie_start_coords <- tribble(
   "Coquille",                         -133,      43.2
 )
 
-# PACK THE PIE STARTING POSITIONS
-
-pie_radius <- 1.4
-
+# PACK THE PIE STARTING POSITIONS ===== 
+pie_radius <- 1.4 # adjust for radius white space around pie to be larger or smaller 
 
 north_to_south_order <- c(
   # Alaska
@@ -401,9 +389,6 @@ north_to_south_order <- c(
 pack_input <- pie_start_coords %>%
   mutate(
     radius = pie_radius,
-    
-    # Scale longitude because degrees longitude are visually
-    # compressed relative to latitude.
     x = start_lon * 0.6,
     y = start_lat
   )
@@ -414,16 +399,11 @@ packed <- circleRepelLayout(
     y = pack_input$y,
     r = pack_input$radius
   ),
-  
-  # Keep the layout from wrapping around the map
+   
   wrap = FALSE,
-  
-  # Explicitly treat r as a radius
-  sizetype = "radius",
-  
-  # More iterations = more complete repulsion
-  maxiter = 1000,
-  
+   
+  sizetype = "radius", 
+  maxiter = 1000, 
   xysizecols = c(1, 2, 3)
 )
 
@@ -438,9 +418,8 @@ repelled_coords <- pie_start_coords %>%
     lon,
     lat
   )
-# MANUAL NUDGES FOR INDIVIDUAL PIE CHARTS
-# dx = move left/right
-# dy = move down/up
+
+# MANUAL NUDGES FOR INDIVIDUAL PIE CHARTS 
 pie_nudges <- tribble(
   ~population,       ~dx,    ~dy,
   "Harrison",         0.0,    0.5,
@@ -458,9 +437,7 @@ repelled_coords <- repelled_coords %>%
   ) %>%
   select(population, lon, lat)
 
-
-
-# 5. COAST / MAP COLORS
+# COAST / MAP COLORS
 coast <- coast %>%
   mutate(
     broad_region = case_when(
@@ -471,7 +448,6 @@ coast <- coast %>%
       TRUE                              ~ "Other"
     )
   )
-
 
 custom_pal_map <- c(
   custom_pal,
@@ -518,10 +494,7 @@ pie_coords_repelled_TREATY1 <- pie_coords_TREATY1 %>%
   left_join(label_lookup, by = "population")
 
 ## MAIN MAP =======
-main_map <- ggplot() +
-  
-  # MAP
-  
+main_map <- ggplot() + 
   geom_sf(
     data = coast,
     aes(
@@ -544,14 +517,11 @@ main_map <- ggplot() +
     fill = NA,
     color = "black",
     linewidth = 0.8
-  ) +
-  # Start a NEW fill scale so the map colors and pie colors
-  # don't interfere with one another.
+  ) + 
   ggnewscale::new_scale_fill() +
   
   # LEADER LINES
-  #
-  # Pie centre -> actual river mouth
+  # Pie centre to actual river mouth
   
   geom_segment(
     data = pie_coords_repelled_TREATY1 %>% filter(!population %in% puget_sog),
@@ -633,9 +603,7 @@ main_map <- ggplot() +
   ) +
   
   ggtitle( "Treaty Period: 2009-2018") + 
-  
-  # THEME
-  
+ 
   theme_void() +
   
   theme(  
@@ -655,44 +623,36 @@ main_map <- ggplot() +
 
 
 ## PUGET SOUND INSET ============================================================
-
-# Change lon/lat here if you want to move individual pies.
 puget_pie_positions <- tribble(
   ~population,                     ~lon,       ~lat,
   
   "Nooksack Spring Fingerling",    -122.73,    48.74,
   "Skagit Spring Fingerling",      -122.15,    48.50,
-  "Skagit Summer Fingerling",      -122.66,    48.18,   # ASSUMPTION: renamed from "Skagit Fall" -- see note above
+  "Skagit Summer Fingerling",      -122.66,    48.18,    
   "Stillaguamish Fall Fingerling", -121.92,    47.98,
-  "Skykomish Fall Fingerling",     -122.3,     47.58    # ASSUMPTION: renamed from "Snohomish Fall" -- see note above
+  "Skykomish Fall Fingerling",     -122.3,     47.58     
 )
 
 ## GET PUGET SOUND PIE DATA =========
-
 pie_coords_PUGET <- pie_coords_TREATY1 %>%
   
   filter(
     population %in% puget_sog
   ) %>%
-  
-  # Remove old pie coordinates
+   
   select(
     -any_of(c("lon", "lat"))
   ) %>%
-  
-  # Add actual river locations
+   
   left_join(
     true_coords_PUGETSOUND,
     by = "population"
-  ) %>%
-  
-  # Add inset pie positions
+  ) %>% 
   left_join(
     puget_pie_positions,
     by = "population"
   ) %>%
-  
-  # Add short display labels
+   
   left_join(
     label_lookup,
     by = "population"
@@ -700,10 +660,8 @@ pie_coords_PUGET <- pie_coords_TREATY1 %>%
 
 
 ## PUGET SOUND INSET MAP  ============================================================
-
 puget_map <- ggplot() +
-  # BASE MAP
-  
+ 
   geom_sf(
     data = coast,
     aes(
@@ -717,8 +675,7 @@ puget_map <- ggplot() +
     values = custom_pal_map,
     guide = "none"
   ) +
-  
-  # Start a separate fill scale for pies
+   
   ggnewscale::new_scale_fill() +
   # LEADER LINES
   
@@ -791,8 +748,7 @@ puget_map <- ggplot() +
   scale_fill_manual(
     values = custom_pal#,
     # name = "Fishery Region"
-  ) +
-  # PUget SOUND MAP EXTENT
+  ) + 
   
   coord_sf(
     xlim = c(-123.2, -121.54),
@@ -872,9 +828,6 @@ pie_coords_TREATY2 <- pie_df_TREATY2 %>%
     values_from = avg_mort,
     values_fill = 0
   ) %>%
-  # attach starting lat/lon (these get dropped/rebuilt in step 7,
-  # but pie_coords_TREATY1 needs lat/lon columns to exist for the
-  # select(-lat, -lon) call downstream)
   left_join(true_coords, by = "population") %>%
   dplyr::rename(lon = true_lon, lat = true_lat)
 
@@ -886,9 +839,7 @@ pie_coords_repelled_TREATY2 <- pie_coords_TREATY2 %>%
 
 ## MAIN MAP =======
 main_map <- ggplot() +
-  
-  # MAP
-  
+ 
   geom_sf(
     data = coast,
     aes(
@@ -987,19 +938,15 @@ main_map <- ggplot() +
     values = custom_pal,
     name = "Fishery Region"
   ) +
-  
-  # MAP EXTENT
-  # 
+ 
   coord_sf(
     xlim = c(-155, -120),
     ylim = c(41, 61),
     expand = FALSE 
  ) +
-  # 
-  
+ 
   ggtitle("Treaty Period: 2019-2024") + 
-  
-  # THEME
+ 
   theme_void() +
   
   theme(
@@ -1029,31 +976,24 @@ pie_coords_PUGET <- pie_coords_TREATY2 %>%
   select(
     -any_of(c("lon", "lat"))
   ) %>%
-  
-  # Add actual river locations
+   
   left_join(
     true_coords_PUGETSOUND,
     by = "population"
   ) %>%
-  
-  # Add inset pie positions
+   
   left_join(
     puget_pie_positions,
     by = "population"
   ) %>%
   
-  # Add short display labels
   left_join(
     label_lookup,
     by = "population"
   )
 
-
 ## PUGET SOUND INSET MAP  ============================================================
-
 puget_map <- ggplot() +
-  # BASE MAP
-  
   geom_sf(
     data = coast,
     aes(
@@ -1067,8 +1007,7 @@ puget_map <- ggplot() +
     values = custom_pal_map,
     guide = "none"
   ) +
-  
-  # Start a separate fill scale for pies
+   
   ggnewscale::new_scale_fill() +
   # LEADER LINES
   
@@ -1141,8 +1080,7 @@ puget_map <- ggplot() +
   scale_fill_manual(
     values = custom_pal#,
     # name = "Fishery Region"
-  ) +
-  # PUget SOUND MAP EXTENT
+  ) + 
   
   coord_sf(
     xlim = c(-123.2, -121.54),
