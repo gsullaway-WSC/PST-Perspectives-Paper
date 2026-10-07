@@ -1,7 +1,7 @@
 library(here)
 library(tidyverse)
  
-# PSC Chinook CWT indicator stocks: local ("home") vs away exploitation rate
+# PSC Chinook CWT indicator stocks: "local" vs external exploitation rate
 
 # This script uses the PSC/CTC Appendix C calendar-year
 # mortality distributions (adult-equivalent, AEQ) to compare, for each
@@ -11,13 +11,13 @@ library(tidyverse)
  
 data <- read_csv(here("data/PSC_CTC_Chinook_master_table_long.csv"))
 
-unique(data[c("population", "region")])
+# unique(data[c("population", "region")])
 
 # Home jurisdiction for each of the 20 indicator stocks ----------------
 # Stikine, Taku rivers originate mostly in BC even though their
 # mouths (and terminal fisheries) are in Southeast Alaska, so, their home
 # jurisdiction is coded as British Columbia (flagged with * in plot labels because they are transboundary).
-# Columbia River stocks are coded Washington due to the specific stocks included. 
+# Columbia River stocks are coded Washington because of the specific stocks included,these stocks originate in WA 
 
 home_lookup <- tribble(
   ~population,                      ~home_jurisdiction,     ~population_clean,
@@ -42,9 +42,7 @@ home_lookup <- tribble(
   "Siletz",                         "Oregon",                "Siletz",
   "Siuslaw",                        "Oregon",                "Siuslaw"
 )
-
-stopifnot(setequal(home_lookup$population, unique(data$population)))
-
+ 
 region_group_lookup <- tribble(
   ~home_jurisdiction,   ~region_group,
   "Alaska",             "AK",
@@ -86,7 +84,7 @@ fishery_jurisdiction_lookup <- tribble(
   "sfalc_s",      "Oregon"
 )
 
-# US terminal (`usterm_*`) catching jurisdiction by population. 
+# US terminal catching jurisdiction by population. 
 usterm_jurisdiction_lookup <- home_lookup %>%
   mutate(usterm_jurisdiction = case_when(
     population %in% c("Chilkat River", "Unuk River", "Stikine River", "Taku River") ~ "Alaska",
@@ -145,7 +143,7 @@ er_diff_data_p1 <- yearly_ratios %>%
   ) %>%
   left_join(region_group_lookup, by = "home_jurisdiction")
 
-# Flag using +/- 1 SD of ER_diff within this period's own distribution
+# flag using +/- 1 SD of ER_diff within this period's own distribution
 p1_stats <- er_diff_data_p1 %>%
   summarise(mean_ER_diff = mean(ER_diff, na.rm = TRUE), sd_ER_diff = sd(ER_diff, na.rm = TRUE))
 
@@ -249,7 +247,7 @@ b <- ggplot(er_diff_data_p2, aes(x = ER_diff, y = fct_reorder(population_clean, 
            color = "gray30", linewidth = 0.5) +
   scale_x_continuous(limits = c(-0.5, 0.5))
  
-
+# Fig 2 Save ======
 fig_2 <- ggpubr::ggarrange(a, b, labels = c("A.", "B."), ncol = 2)
  
 ggsave("output/plots/Figure_2.jpeg", fig_2, width = 12, height = 7)

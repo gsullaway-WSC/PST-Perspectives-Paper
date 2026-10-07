@@ -2,15 +2,11 @@
 # Mortality:   TCCHINOOK-26-01-Appendix-C-Mortality-Distribution-Tables-Detailed source: https://www.psc.org/publications/technical-reports/technical-committee-reports/chinook/ctc-data-sets/
 # Escapement:  Escapement_data_all_2026-08-27.csv from:  https://psc1.shinyapps.io/ctc-shiny-app/_w_efbbad27/
 
-# Mortality =  the AEQ equivalency estimates, a calendar-year, AEQ-accounting
-# total_er = fraction of that AEQ total run killed across all fisheries that calendar year
-
-# PSC CTC Chinook -- build one master table from:
+# PSC CTC Chinook -- build one master df from:
 #   (A) Appendix C "total mort" tabs         -> % distribution of AEQ mortality + esc
 #   (B) Escapement_data_all_2026-08-27.csv   -> actual escapement numbers (long format:
 #                                                Year, StockName, SeriesLabel, Values)
  
-
 library(dplyr)
 library(tidyr)
 library(stringr)
@@ -22,7 +18,8 @@ library(here)
 mort_path <- here("data/TCCHINOOK-26-01-Appendix-C-Mortality-Distribution-Tables-Detailed.xlsx")
 esc_path  <- here("data/CTC_Escapement_data_all_2026-08-27.csv")
 
-# STOCK CODE -> FULL NAME -> REGION   =========
+# STOCK CODE -> FULL NAME -> STOCK REGION   =========
+# these are based on the mortality df regions, apply them to the escapement data 
 stock_xwalk <- tribble(
   ~stock_code,      ~population,                                  ~region,
   "ATN",  "Atnarko River",                          "N BC",
@@ -87,7 +84,7 @@ stock_xwalk <- tribble(
 )
 
 # STOCK CODE -> river mouth latitude =====
- 
+# this includes all stock codes, more than what is used in paper 
 river_mouth_lat_xwalk <- tribble(
   ~stock_code,      ~river_mouth_lat,
   "ATN",  52.37,   # Atnarko/Bella Coola R. mouth, North Bentinck Arm
@@ -100,60 +97,60 @@ river_mouth_lat_xwalk <- tribble(
   "South Umpqua", 43.70,   # Umpqua R. mouth, Reedsport OR (proxy for S. Fork)
   "Coquille",     43.12,   # Coquille R. mouth, Bandon OR
   "ELW",  48.15,   # Elwha R. mouth, Strait of Juan de Fuca
-  "GAD",  47.42,   # Skokomish R. system, Hood Canal near Hoodsport WA
-  "HAN",  46.55,   # Hanford Reach, mid-Columbia R. near Richland WA
+  "GAD",  47.42,   # Skokomish R., Hood Canal 
+  "HAN",  46.55,   # Hanford Reach, mid-Columbia R. 
   "HAR",  49.29,   # Harrison R. confluence w/ Fraser
   "HOK",  48.17,   # Hoko R. mouth, Strait of Juan de Fuca
-  "KLM",  54.52,   # Kitsumkalum R. confluence w/ Skeena near Terrace BC
+  "KLM",  54.52,   # Kitsumkalum R. confluence w/ Skeena 
   "KLY",  54.52,   # same system as KLM
-  "LRH",  46.19,   # Lower Columbia R. composite, near Astoria OR
+  "LRH",  46.19,   # Lower Columbia R. composite,  
   "LRW",  45.86,   # Lewis R. mouth at Columbia R., Woodland WA
   "LYF",  46.58,   # Snake R. near Lyons Ferry WA
   "LYY",  46.58,   # same system as LYF
-  "MSH",  50.85,   # Shuswap R. system, interior BC (approx)
+  "MSH",  50.85,   # Shuswap R.  
   "NIC",  50.42,   # Nicola R. confluence w/ Thompson R., Spences Bridge BC
-  "NIS",  47.10,   # Nisqually R. mouth, Puget Sound near Olympia
+  "NIS",  47.10,   # Nisqually R. mouth, Puget Sound  
   "NSF",  48.73,   # Nooksack R. mouth, Bellingham Bay
-  "NSA",  NA,       # Northern SEAK Spring -- regional composite, no single river
-  "PHI",  50.48,   # Phillips R. mouth, Phillips Arm BC
-  "PPS",  49.69,   # Puntledge R. mouth, Comox/Courtenay BC
-  "QUE",  47.53,   # Queets R. mouth, WA coast
-  "Grays Harbor", 46.97,   # Grays Harbor entrance / Chehalis R. mouth
-  "Hoh",          47.75,   # Hoh R. mouth, WA coast
-  "Quillayute",   47.91,   # Quillayute R. mouth, La Push WA
-  "QUI",  50.03,   # Quinsam R. confluence, Campbell River BC
-  "EVIN", 50.00,   # East Vancouver Island North -- approx composite centroid
-  "RBT",  49.26,   # Robertson Ck / Somass R. system, Port Alberni BC
-  "NWVI", 50.05,   # NW Vancouver Island composite -- approx centroid, Kyuquot Sound area
-  "SWVI", 49.15,   # SW Vancouver Island composite -- approx centroid, Clayoquot Sound area
-  "SAM",  48.55,   # Samish R. mouth, Samish Bay
-  "SHU",  50.83,   # Lower Shuswap R., Sicamous BC area
-  "SKF",  48.35,   # Skagit R. mouth, Skagit Bay
-  "SKY",  47.97,   # proxy: Snohomish R. mouth, Everett WA
-  "SMK",  49.13,   # Similkameen R. confluence w/ Okanagan R., near border
+  "NSA",  NA,        
+  "PHI",  50.48,   # Phillips R. mouth,  
+  "PPS",  49.69,   # Puntledge R. mouth, 
+  "QUE",  47.53,   # Queets R. mouth, 
+  "Grays Harbor", 46.97,    
+  "Hoh",          47.75,   # Hoh R. mouth 
+  "Quillayute",   47.91,   # Quillayute R.  
+  "QUI",  50.03,   # Quinsam R.  
+  "EVIN", 50.00,   # East Vancouver Island North  
+  "RBT",  49.26,   # Robertson Ck / Somass R. system 
+  "NWVI", 50.05,   # NW Vancouver Island composite 
+  "SWVI", 49.15,   # SW Vancouver Island composite  
+  "SAM",  48.55,   # Samish R. mouth 
+  "SHU",  50.83,   # Lower Shuswap R. 
+  "SKF",  48.35,   # Skagit R. mouth 
+  "SKY",  47.97,   # Snohomish R.  
+  "SMK",  49.13,   # Similkameen R. confluence w/ Okanagan R.
   "SOO",  48.30,   # Sooes/Tsoo-Yess R. mouth near Neah Bay WA
-  "SPR",  45.73,   # Spring Creek NFH, Columbia R. Gorge near Underwood WA
-  "SPS",  47.20,   # South Puget Sound composite -- approx, Olympia area
-  "SRH",  45.04,   # Salmon R. mouth near Lincoln City OR
-  "Nehalem", 45.65,   # Nehalem R. mouth, OR coast
-  "Siletz",  44.91,   # Siletz R. mouth, Lincoln City OR
-  "Siuslaw", 43.97,   # Siuslaw R. mouth, Florence OR
-  "SSA",  NA,       # Southern SEAK Spring -- regional composite, no single river
-  "SSF",  48.35,   # Skagit R. mouth (same system as SKF)
-  "STI",  56.60,   # Stikine R. mouth near Wrangell AK
-  "STL",  48.25,   # Stillaguamish R. mouth, Port Susan Bay
-  "SUM",  46.70,   # Columbia R. Summers -- approx mid-Columbia (upriver run, not a single tributary)
-  "TAK",  58.35,   # Taku R. mouth near Juneau AK
-  "TST",  NA,       # Taku + Stikine combined -- two river mouths, no single point
-  "UNU",  55.72,   # Unuk R. mouth, Burroughs Bay/Behm Canal near Ketchikan
-  "URB",  46.55,   # Columbia R. Upriver Bright -- approx Hanford Reach area
-  "WSH",  45.65,   # Willamette R. mouth at Columbia R., Portland OR
-  "NSF adj", 48.73  # same system as NSF
+  "SPR",  45.73,   # Spring Creek NFH, Columbia R. Gorge  
+  "SPS",  47.20,   # South Puget Sound composite  
+  "SRH",  45.04,   # Salmon R. mouth 
+  "Nehalem", 45.65,   # Nehalem R. mouth 
+  "Siletz",  44.91,   # Siletz R. mouth 
+  "Siuslaw", 43.97,   # Siuslaw R. mouth 
+  "SSA",  NA,       # Southern SEAK Spring  
+  "SSF",  48.35,   # Skagit R. mouth  
+  "STI",  56.60,   # Stikine R. mouth  
+  "STL",  48.25,   # Stillaguamish R. mouth 
+  "SUM",  46.70,   # Columbia R. Summers  
+  "TAK",  58.35,   # Taku R. mouth  
+  "TST",  NA,       # Taku + Stikine 
+  "UNU",  55.72,   # Unuk R. mouth, Burroughs Bay/Behm Canal  
+  "URB",  46.55,   # Columbia R. Upriver Bright  
+  "WSH",  45.65,   # Willamette R. mouth at Columbia R. 
+  "NSF adj", 48.73   
 )
 
-# STOCK CODES included in the CTC's synoptic stock status evaluation, per
+# STOCK CODES included in the CTC's synoptic stock status evaluation,
 # Table 3.2 ("Summary of information available for synoptic stock
-# evaluations"), filtered to rows where Data Sufficient 
+# evaluations"), just codes where Data Sufficient 
 
 synoptic_stock_codes <- c(
   "CHK", "UNU", "TAK", "STI",              # SEAK / Transboundary (Situk, Alsek excluded -- no mortality data)
@@ -164,7 +161,7 @@ synoptic_stock_codes <- c(
   "Nehalem", "Siletz", "Siuslaw"           # OR Coast
 )
 
-# Read every "total mort" tab from Appendix C   ========
+# Read every total mort tab from Appendix C   ========
 pct_col_names <- c(
   "seak_t","seak_n","seak_s",                # AABM SEAK
   "nbc_t","nbc_s",                           # AABM NBC
@@ -202,7 +199,6 @@ mort_codes  <- str_remove(mort_sheets, " total mort$")
 mort_long <- map2_dfr(mort_sheets, mort_codes, read_mort_tab)
 
 ## Load and tidy escapement CSV  =====
-
 esc_raw <- read_csv(esc_path, col_types = cols(
   Year        = col_double(),
   StockName   = col_character(),
@@ -278,20 +274,7 @@ esc_long <- pmap_dfr(
   }
 )
 
-# TST (Taku + Stikine combined) = sum of its two component wild stocks
-tst_combo <- esc_long %>%
-  filter(stock_code %in% c("TAK", "STI")) %>%
-  group_by(calendar_year) %>%
-  summarise(
-    escapement = if (all(is.na(escapement))) NA_real_ else sum(escapement, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(stock_code = "TST", .before = 1)
-
-esc_long <- bind_rows(esc_long, tst_combo)
-
 ## 4. Join mortality distribution + escapement, filter to synoptic stocks
-
 aabm_cols     <- c("seak_t","seak_n","seak_s","nbc_t","nbc_s","wcvi_t","wcvi_s")
 isbm_cols     <- c("nbcis_t","nbcis_n","nbcis_s","sbcis_t","sbcis_n","sbcis_s",
                    "nfalc_t","nfalc_s","sfalc_t","sfalc_s","wac_n","ps_n","ps_s")
@@ -305,7 +288,7 @@ master <- mort_long %>%
   filter(stock_code %in% synoptic_stock_codes) %>%
   relocate(population, region, stock_code, calendar_year, river_mouth_lat,
            escapement, est_cwt, ages, data_status)  %>%
-  mutate(across(all_of(pct_col_names), ~ .x / 100,
+  mutate(across(all_of(pct_col_names), ~ .x / 100, # turn numbers into percents 
                 .names = "n_{.col}"),
          aabm_er     = rowSums(across(all_of(aabm_cols)),     na.rm = TRUE),
          isbm_er     = rowSums(across(all_of(isbm_cols)),     na.rm = TRUE),

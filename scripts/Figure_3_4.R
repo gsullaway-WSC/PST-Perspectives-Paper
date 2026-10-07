@@ -1,5 +1,5 @@
 # Exploitation Rates for just ocean fisheries for all stocks.
-# Asks are there years when ER is high and proceeding escapement is low??
+# Asks -- are there years when ER is high and escapement is low??
 
 library(tidyverse)
 library(here)
@@ -32,35 +32,8 @@ region_pal <- c(
   "LCR"  = "#956030",
   "COL"  = "#854A20"
 )
-
-region_to_jurisdiction <- c(
-  # British Columbia
-  "NBC"  = "British Columbia",
-  "SBC"  = "British Columbia",
-  "WCVI" = "British Columbia",
-  
-  # Alaska
-  "SEAK" = "Alaska",
-  "AK"   = "Alaska",
-  
-  # Washington
-  "WA"   = "Washington",
-  "OP"   = "Washington",
-  "PS"   = "Washington",    # Puget Sound
-  
-  # Oregon
-  "MCR" = "Oregon",
-  "LCR"= "Oregon",
-  "OC" = "Oregon",
-  "ORC" = "Oregon",
-  "OR"   = "Oregon",
-  "COL"  = "Oregon"         # Columbia — adjust if Columbia stocks split WA/OR
-)
-
-# Geographic region order, North to South, for consistent axis ordering in
-# plots (e.g. the Fig4 lollipop). Alaska is northernmost, working down through
-# BC, Washington, to Oregon/Columbia. Adjust if any stock's region code
-# belongs at a different point in the coastwide sequence.
+     
+# Geographic region order, North to South
 region_order_n_to_s <- c(
   "AK", "SEAK",             # Alaska
   "NBC", "SBC", "WCVI",     # British Columbia
@@ -69,6 +42,8 @@ region_order_n_to_s <- c(
 )
  
 ## Load Esc Goals ======
+# Escapement Goals Compiled by author based on the CTC Chinook EG report published in 2025 available on PSC website.
+# Goals were either PSC agreed or a state goal, some change through time and that is captured here too. 
 esc_goals <- read_csv("data/Escapement_Goals_Use.csv")   %>%
   filter(!year < 2000) %>%
   gather(c(5:10), key = "goal_type", value = "escapement_goal") %>%
@@ -124,16 +99,6 @@ master <- read_csv("data/PSC_CTC_Chinook_master_table_long.csv") %>%
          !calendar_year < 2000,
           population %in% sufficient_data_populations,
          !population == "Hanford Wild Brights")
-
-
-## Look at ER Limits that are stock specific 
-# # CYER data taken from their CTC ER 2025
-# # this sum is across CAN and US ers!
-# cyer <- read_csv("data/CYER_Limits_Only.csv") %>%
-#   filter(!is.na(`CYER_Limit_2019-2028`)) %>%
-#   group_by(Population) %>%
-#   summarise(`CYER_Limit_2019-2028` = sum(`CYER_Limit_2019-2028`)) %>%
-#   rename(population = "Population")
 
 ## Line up the population names ==== 
 population_recode <- tribble(
@@ -241,6 +206,7 @@ joined_df <- total_run_df %>%
 populations <- unique(joined_df$population)
 
 ## Figure S1  =========
+# Plot of all stocks 
 plots <- lapply(populations, function(pop) {
   
   df_pop <- joined_df %>% filter(population == pop)
@@ -306,6 +272,7 @@ plots <- lapply(populations, function(pop) {
     )
   
 })
+
 ### Save =========
 # Save each plot to its own page in a single PDF
 pdf("output/plots/Figure_S1_AllChinook_Coastwide_escapement_by_population.pdf", width = 10, height = 7)
@@ -315,8 +282,8 @@ for (p in plots) {
 dev.off()
 
 ## Figure 3 ========
-fig_pops <- c("Unuk", "Lower Shuswap", "Queets Fall", "Siuslaw Fall")  # was "Queets SprSum" -- see note above
- 
+# Same plot as S1 but only plot 4 select stocks 
+fig_pops <- c("Unuk", "Lower Shuswap", "Queets Fall", "Siuslaw Fall")  
  
 plots_fig3 <- lapply(fig_pops, function(pop) {
   
@@ -403,10 +370,11 @@ print(Figure3)
 dev.off()
 
  head(joined_df)
+ 
 ##  Figure 4 - Plot Comparing Regions and summary stats ===========
 # stock-level summary by period (group by population)
- # rename regions to match table 2 
-
+ 
+# Stock origin regions, in paper table 2.
  region_lookup <- tribble(
    ~population,                ~region,
    "Chilkat River",            "SEAK",
@@ -519,9 +487,9 @@ p_pct_years <- escapement_summary %>%
     strip.text         = element_text(face = "bold", size = 18),
     legend.position    = "bottom"
   )
-
+## save figure 4 ====
 p_pct_years
-ggsave("output/plots/Figure_4.png",
+ggsave("output/plots/Figure_4.jpeg",
        p_pct_years, width = 11, height = 6)
 
 # Summary / Results Tables ==== 
